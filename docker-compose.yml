@@ -1,0 +1,134 @@
+services:
+
+  # ── CORE ──────────────────────────────────────────────────────
+  core:
+    build:
+      context: ./priorix-core
+      dockerfile: Dockerfile
+    networks:
+      - priorix-network
+    depends_on:
+      - mysql-core
+      - redis
+    environment:
+      APP_ENV: local
+      APP_DEBUG: true
+      DB_HOST: mysql-core
+      DB_DATABASE: priorix_core
+      DB_USERNAME: priorix
+      DB_PASSWORD: secret
+      GAMIFICATION_SERVICE_URL: http://gamification/api/gamification
+      STATISTICS_SERVICE_URL: http://gamification/api/statistics
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
+  # ── GAMIFICATION ──────────────────────────────────────────────
+  gamification:
+    build:
+      context: ./priorix-gamification
+      dockerfile: Dockerfile
+    networks:
+      - priorix-network
+    depends_on:
+      - mysql-gamification
+      - redis
+    environment:
+      APP_ENV: local
+      APP_DEBUG: true
+      DB_HOST: mysql-gamification
+      DB_DATABASE: priorix_gamification
+      DB_USERNAME: priorix
+      DB_PASSWORD: secret
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
+  # ── NGINX ─────────────────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8000:80"
+      - "8001:81"
+    volumes:
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - core
+      - gamification
+    networks:
+      - priorix-network
+
+  # ── MYSQL CORE ────────────────────────────────────────────────
+  mysql-core:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: priorix_core
+      MYSQL_USER: priorix
+      MYSQL_PASSWORD: secret
+    volumes:
+      - mysql-core-data:/var/lib/mysql
+    networks:
+      - priorix-network
+
+  # ── MYSQL GAMIFICATION ────────────────────────────────────────
+  mysql-gamification:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: priorix_gamification
+      MYSQL_USER: priorix
+      MYSQL_PASSWORD: secret
+    volumes:
+      - mysql-gamification-data:/var/lib/mysql
+    networks:
+      - priorix-network
+
+  # ── REDIS ─────────────────────────────────────────────────────
+  redis:
+    image: redis:alpine
+    networks:
+      - priorix-network
+
+  # ── PROMETHEUS ────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./docker/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - priorix-network
+
+  # ── GRAFANA ───────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ./docker/grafana/dashboards:/var/lib/grafana/dashboards
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning
+    networks:
+      - priorix-network
+
+  # ── JAEGER ────────────────────────────────────────────────────
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "16686:16686"
+      - "14268:14268"
+      - "4317:4317"
+      - "4318:4318"
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    networks:
+      - priorix-network
+
+volumes:
+  mysql-core-data:
+  mysql-gamification-data:
+
+networks:
+  priorix-network:
+    driver: bridge

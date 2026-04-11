@@ -1,7 +1,15 @@
-# .gitignore
+# Ignorar .env reales de cada servicio
 priorix-core/.env
 priorix-gamification/.env
+
+# Dependencias
 priorix-core/vendor/
 priorix-gamification/vendor/
-docker/data/
+priorix-core/node_modules/
+priorix-gamification/node_modules/
+
+# Logs
 *.log
+
+# Datos de Docker
+docker/data/
