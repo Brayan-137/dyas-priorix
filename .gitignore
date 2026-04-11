@@ -1,0 +1,7 @@
+# .gitignore
+priorix-core/.env
+priorix-gamification/.env
+priorix-core/vendor/
+priorix-gamification/vendor/
+docker/data/
+*.log
