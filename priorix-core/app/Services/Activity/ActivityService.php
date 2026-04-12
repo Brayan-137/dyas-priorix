@@ -24,11 +24,29 @@ class ActivityService
             ->get();
     }
 
-    public function completeActivity(int $activityId, int $userId): array
+    public function getActivity(int $activityId, int $userId): Activity
     {
-        $activity = Activity::where('id', $activityId)
+        return Activity::where('id', $activityId)
             ->where('user_id', $userId)
             ->firstOrFail();
+    }
+
+    public function updateActivity(int $activityId, int $userId, array $data): Activity
+    {
+        $activity = $this->getActivity($activityId, $userId);
+        $activity->update($data);
+
+        return $activity;
+    }
+
+    public function deleteActivity(int $activityId, int $userId): void
+    {
+        $this->getActivity($activityId, $userId)->delete();
+    }
+
+    public function completeActivity(int $activityId, int $userId): array
+    {
+        $activity = $this->getActivity($activityId, $userId);
 
         $activity->markAsCompleted();
 
