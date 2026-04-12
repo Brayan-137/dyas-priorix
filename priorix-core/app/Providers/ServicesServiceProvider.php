@@ -6,6 +6,10 @@ use Illuminate\Support\ServiceProvider;
 use App\Services\Activity\ActivityService;
 use App\Infrastructure\Http\ResilientHttpClient;
 use App\Services\Auth\AuthService;
+use App\Services\Planner\PlannerService;
+use App\Services\Planner\SchedulingAlgorithm;
+use App\Services\Planner\AvailabilityManager;
+use App\Services\Planner\PriorityScorer;
 
 class ServicesServiceProvider extends ServiceProvider
 {
@@ -17,6 +21,19 @@ class ServicesServiceProvider extends ServiceProvider
         $this->app->bind(ActivityService::class, function ($app) {
             return new ActivityService(
                 $app->make(ResilientHttpClient::class)
+            );
+        });
+
+        $this->app->bind(SchedulingAlgorithm::class);
+        $this->app->bind(AvailabilityManager::class);
+        $this->app->bind(PriorityScorer::class);
+        
+        $this->app->bind(PlannerService::class, function ($app) {
+            return new PlannerService(
+                $app->make(ResilientHttpClient::class),
+                $app->make(SchedulingAlgorithm::class),
+                $app->make(AvailabilityManager::class),
+                $app->make(PriorityScorer::class)
             );
         });
     }

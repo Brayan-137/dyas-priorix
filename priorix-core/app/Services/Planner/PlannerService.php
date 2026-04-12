@@ -7,6 +7,7 @@ use App\Models\Task;
 use App\Models\User;
 use App\Infrastructure\Http\ResilientHttpClient;
 use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 
 class PlannerService
 {
@@ -61,11 +62,45 @@ class PlannerService
     public function rescheduleActivity(int $activityId, string $newDateTime): bool
     {
         $activity = Activity::findOrFail($activityId);
+        $newStart = Carbon::parse($newDateTime);
         
-        // Update activity or tasks
-        // ... logic to reschedule
+        // Get existing tasks
+        $existingTasks = Task::where('activity_id', $activityId)->get();
         
-        return true;
+        // Calculate remaining time needed
+        $completedMinutes = $existingTasks->sum('duration_minutes');
+        $remainingMinutes = $activity->estimated_minutes - $completedMinutes;
+        
+        if ($remainingMinutes <= 0) {
+            return true; // Already completed
+        }
+        
+        // Get available slots starting from newDateTime
+        $availableSlots = $this->availability->getAvailableSlots($activity->user_id, $newStart, $newStart->copy()->addDays(7));
+        $availableSlots = array_filter($availableSlots, fn($slot) => $slot['start'] >= $newStart);
+        
+        // Schedule remaining sessions
+        $scheduled = 0;
+        $maxSessions = $activity->max_sessions ?? PHP_INT_MAX;
+        
+        foreach ($availableSlots as $slot) {
+            if ($scheduled >= $maxSessions || $remainingMinutes <= 0) {
+                break;
+            }
+            
+            $sessionDuration = min($activity->max_session_minutes, $slot['duration'], $remainingMinutes);
+            
+            Task::create([
+                'activity_id' => $activityId,
+                'scheduled_at' => $slot['start'],
+                'duration_minutes' => $sessionDuration,
+            ]);
+            
+            $remainingMinutes -= $sessionDuration;
+            $scheduled++;
+        }
+        
+        return $remainingMinutes <= 0;
     }
 
     private function createTasksFromPlan(array $plan, int $userId): void
