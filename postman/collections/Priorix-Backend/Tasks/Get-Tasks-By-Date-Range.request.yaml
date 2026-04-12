@@ -1,0 +1,22 @@
+$kind: http-request
+name: Get Tasks By Date Range
+method: GET
+url: '{{base_url_core}}/tasks/date-range'
+order: 1500
+headers:
+  - key: Authorization
+    value: 'Bearer {{token}}'
+queryParams:
+  - key: start_date
+    value: '2026-04-14'
+  - key: end_date
+    value: '2026-04-20'
+tests: |-
+  pm.test("Status is 200 OK", function () {
+    pm.response.to.have.status(200);
+  });
+
+  pm.test("Response is an array", function () {
+    const jsonData = pm.response.json();
+    pm.expect(jsonData).to.be.an('array');
+  });

@@ -1,0 +1,17 @@
+$kind: http-request
+name: Complete Task
+method: POST
+url: '{{base_url_core}}/tasks/{{task_id}}/complete'
+order: 1400
+headers:
+  - key: Authorization
+    value: 'Bearer {{token}}'
+tests: |-
+  pm.test("Status is 200 OK", function () {
+    pm.response.to.have.status(200);
+  });
+
+  pm.test("Response has field id", function () {
+    const jsonData = pm.response.json();
+    pm.expect(jsonData).to.have.property('id');
+  });

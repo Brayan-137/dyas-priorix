@@ -1,0 +1,33 @@
+$kind: http-request
+name: Reschedule Activity
+method: POST
+url: '{{base_url_core}}/planner/reschedule-activity/{{activity_id}}'
+order: 1100
+headers:
+  - key: Authorization
+    value: 'Bearer {{token}}'
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "new_date_time": "2026-04-15 09:00:00"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 200 OK", function () {
+        pm.response.to.have.status(200);
+      });
+
+      pm.test("Response has 'success' equal to true", function () {
+        const json = pm.response.json();
+        pm.expect(json.success).to.eql(true);
+      });
+
+      pm.test("Response has 'message' field", function () {
+        const json = pm.response.json();
+        pm.expect(json).to.have.property("message");
+      });

@@ -1,0 +1,28 @@
+$kind: http-request
+name: Update Task
+method: PUT
+url: '{{base_url_core}}/tasks/{{task_id}}'
+order: 1200
+headers:
+  - key: Authorization
+    value: 'Bearer {{token}}'
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "title": "Updated Task Title",
+      "duration_minutes": 30,
+      "scheduled_at": "2026-04-14 10:00:00",
+      "status": "pending"
+    }
+tests: |-
+  pm.test("Status is 200 OK", function () {
+    pm.response.to.have.status(200);
+  });
+
+  pm.test("Response has field id", function () {
+    const jsonData = pm.response.json();
+    pm.expect(jsonData).to.have.property('id');
+  });

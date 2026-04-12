@@ -9,3 +9,5 @@ variables:
     value: ''
   - key: activity_id
     value: '1'
+  - key: task_id
+    value: ''

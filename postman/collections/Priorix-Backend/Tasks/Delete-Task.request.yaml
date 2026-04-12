@@ -1,0 +1,12 @@
+$kind: http-request
+name: Delete Task
+method: DELETE
+url: '{{base_url_core}}/tasks/{{task_id}}'
+order: 1300
+headers:
+  - key: Authorization
+    value: 'Bearer {{token}}'
+tests: |-
+  pm.test("Status is 204 No Content", function () {
+    pm.response.to.have.status(204);
+  });

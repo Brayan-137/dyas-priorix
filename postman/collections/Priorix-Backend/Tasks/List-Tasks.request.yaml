@@ -1,0 +1,31 @@
+$kind: http-request
+name: List Tasks
+method: GET
+url: '{{base_url_core}}/tasks'
+order: 1000
+headers:
+  - key: Authorization
+    value: 'Bearer {{token}}'
+queryParams:
+  - key: status
+    value: ''
+    disabled: true
+  - key: date
+    value: ''
+    disabled: true
+  - key: activity_id
+    value: ''
+    disabled: true
+tests: |-
+  pm.test("Status is 200 OK", function () {
+    pm.response.to.have.status(200);
+  });
+
+  pm.test("Response is an array", function () {
+    const jsonData = pm.response.json();
+    pm.expect(jsonData).to.be.an('array');
+  });
+
+  pm.test("Has Authorization header set", function () {
+    pm.expect(pm.request.headers.get('Authorization')).to.include('Bearer ');
+  });
