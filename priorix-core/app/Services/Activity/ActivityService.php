@@ -67,6 +67,41 @@ class PlannerService
         
         return true;
     }
+    
+    public function getActivity(int $activityId, int $userId): Activity
+    {
+        return Activity::where('id', $activityId)
+            ->where('user_id', $userId)
+            ->firstOrFail();
+    }
+
+    public function updateActivity(int $activityId, int $userId, array $data): Activity
+    {
+        $activity = $this->getActivity($activityId, $userId);
+        $activity->update($data);
+
+        return $activity;
+    }
+
+    public function deleteActivity(int $activityId, int $userId): void
+    {
+        $this->getActivity($activityId, $userId)->delete();
+    }
+
+    public function completeActivity(int $activityId, int $userId): array
+    {
+        $activity = $this->getActivity($activityId, $userId);
+
+        $activity->markAsCompleted();
+
+        $gamificationResult = $this->notifyGamification($userId, $activity);
+        $this->notifyStatistics($userId, $activity);
+
+        return [
+            'activity'     => $activity,
+            'gamification' => $gamificationResult,
+        ];
+    }
 
     private function createTasksFromPlan(array $plan, int $userId): void
     {
