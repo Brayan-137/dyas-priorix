@@ -13,3 +13,11 @@ priorix-gamification/node_modules/
 
 # Datos de Docker
 docker/data/
+
+# Postman files
+.postman/
+postman/environments/
+postman/flows/
+postman/globals/
+postman/mocks/
+postman/specs/
