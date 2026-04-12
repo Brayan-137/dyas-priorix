@@ -1,0 +1,18 @@
+$kind: http-request
+name: Get Pet Status
+method: GET
+url: '{{base_url_gamification}}/gamification/pet'
+order: 1000
+headers:
+  - key: Authorization
+    value: 'Bearer {{token}}'
+tests: |-
+  pm.test("Status is 200 OK", function () {
+    pm.response.to.have.status(200);
+  });
+
+  pm.test("Response has pet data", function () {
+    const jsonData = pm.response.json();
+    pm.expect(jsonData).to.be.an('object');
+    pm.expect(jsonData).to.have.property('level');
+  });

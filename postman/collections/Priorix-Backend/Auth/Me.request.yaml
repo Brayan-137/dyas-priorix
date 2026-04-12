@@ -1,0 +1,19 @@
+$kind: http-request
+id: 0a63fBC6311aef9e4C025b04
+name: Me
+url: '{{base_url_core}}/auth/me'
+method: GET
+headers:
+  - key: Authorization
+    value: 'Bearer {{token}}'
+tests: |-
+  pm.test("Status is 200 OK", function () {
+    pm.response.to.have.status(200);
+  });
+
+  pm.test("Response has user fields", function () {
+    const jsonData = pm.response.json();
+    pm.expect(jsonData).to.have.property('id');
+    pm.expect(jsonData).to.have.property('name');
+    pm.expect(jsonData).to.have.property('email');
+  });

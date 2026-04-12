@@ -1,0 +1,29 @@
+$kind: http-request
+name: Update Activity
+method: PUT
+url: '{{base_url_core}}/activities/{{activity_id}}'
+order: 4000
+headers:
+  - key: Authorization
+    value: 'Bearer {{token}}'
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "title": "Study for exam (updated)",
+      "priority": "media",
+      "status": "in_progress"
+    }
+tests: |-
+  pm.test("Status is 200 OK", function () {
+    pm.response.to.have.status(200);
+  });
+
+  pm.test("Activity was updated", function () {
+    const jsonData = pm.response.json();
+    pm.expect(jsonData).to.have.property('id');
+    pm.expect(jsonData.status).to.eql("in_progress");
+    pm.expect(jsonData.priority).to.eql("media");
+  });

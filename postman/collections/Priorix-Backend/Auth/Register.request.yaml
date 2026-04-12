@@ -1,0 +1,32 @@
+$kind: http-request
+name: Register
+method: POST
+url: '{{base_url_core}}/auth/register'
+order: 1000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "name": "John Doe",
+      "email": "john@example.com",
+      "password": "secret123"
+    }
+tests: |-
+  pm.test("Status is 201 Created", function () {
+    pm.response.to.have.status(201);
+  });
+
+  pm.test("Response has token", function () {
+    const jsonData = pm.response.json();
+    pm.expect(jsonData).to.have.property('token');
+    pm.collectionVariables.set('token', jsonData.token);
+  });
+
+  pm.test("Response has user object", function () {
+    const jsonData = pm.response.json();
+    pm.expect(jsonData).to.have.property('user');
+    pm.expect(jsonData.user).to.have.property('email');
+  });

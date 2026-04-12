@@ -1,0 +1,42 @@
+$kind: http-request
+name: Create Activity
+method: POST
+url: '{{base_url_core}}/activities'
+order: 2000
+headers:
+  - key: Authorization
+    value: 'Bearer {{token}}'
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "title": "Study for exam",
+      "type": "study",
+      "description": "Review chapters 1-5",
+      "estimated_minutes": 90,
+      "max_session_minutes": 30,
+      "max_sessions": 3,
+      "priority": "alta",
+      "label": "university",
+      "is_fixed": false,
+      "repeats_weekly": false,
+      "deadline": "2026-04-20T10:00:00Z",
+      "status": "pending"
+    }
+tests: |-
+  pm.test("Status is 201 Created", function () {
+    pm.response.to.have.status(201);
+  });
+
+  pm.test("Response has activity id", function () {
+    const jsonData = pm.response.json();
+    pm.expect(jsonData).to.have.property('id');
+    pm.collectionVariables.set('activity_id', jsonData.id);
+  });
+
+  pm.test("Response has correct title", function () {
+    const jsonData = pm.response.json();
+    pm.expect(jsonData.title).to.eql("Study for exam");
+  });

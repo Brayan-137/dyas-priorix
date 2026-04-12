@@ -1,0 +1,28 @@
+$kind: http-request
+name: Record Activity
+method: POST
+url: '{{base_url_gamification}}/statistics/record-activity'
+order: 2000
+headers:
+  - key: Authorization
+    value: 'Bearer {{token}}'
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "user_id": 1,
+      "activity_id": 1,
+      "type": "study",
+      "completed_at": "2026-04-12T13:00:00Z"
+    }
+tests: |-
+  pm.test("Status is 200 or 201", function () {
+    pm.expect(pm.response.code).to.be.oneOf([200, 201]);
+  });
+
+  pm.test("Response is an object", function () {
+    const jsonData = pm.response.json();
+    pm.expect(jsonData).to.be.an('object');
+  });

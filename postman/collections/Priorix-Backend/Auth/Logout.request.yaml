@@ -1,0 +1,18 @@
+$kind: http-request
+name: Logout
+method: POST
+url: '{{base_url_core}}/auth/logout'
+order: 5000
+headers:
+  - key: Authorization
+    value: 'Bearer {{token}}'
+tests: |-
+  pm.test("Status is 200 OK", function () {
+    pm.response.to.have.status(200);
+  });
+
+  pm.test("Logout successful", function () {
+    const jsonData = pm.response.json();
+    pm.expect(jsonData).to.have.property('message');
+    pm.collectionVariables.set('token', '');
+  });

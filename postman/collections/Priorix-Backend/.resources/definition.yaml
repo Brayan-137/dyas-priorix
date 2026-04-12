@@ -1,0 +1,11 @@
+$kind: collection
+name: Priorix Backend
+variables:
+  - key: base_url_core
+    value: 'http://localhost:8000/api'
+  - key: base_url_gamification
+    value: 'http://localhost:8001/api'
+  - key: token
+    value: ''
+  - key: activity_id
+    value: '1'

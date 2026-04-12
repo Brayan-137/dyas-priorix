@@ -1,0 +1,28 @@
+$kind: http-request
+name: Update Experience
+method: POST
+url: '{{base_url_gamification}}/gamification/update-experience'
+order: 2000
+headers:
+  - key: Authorization
+    value: 'Bearer {{token}}'
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "user_id": 1,
+      "activity_id": 1,
+      "type": "task_completed",
+      "xp_reward": 50
+    }
+tests: |-
+  pm.test("Status is 200 OK", function () {
+    pm.response.to.have.status(200);
+  });
+
+  pm.test("Experience was updated", function () {
+    const jsonData = pm.response.json();
+    pm.expect(jsonData).to.be.an('object');
+  });

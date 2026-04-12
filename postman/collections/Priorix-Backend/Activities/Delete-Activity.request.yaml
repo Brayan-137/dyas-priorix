@@ -1,0 +1,12 @@
+$kind: http-request
+name: Delete Activity
+method: DELETE
+url: '{{base_url_core}}/activities/{{activity_id}}'
+order: 5000
+headers:
+  - key: Authorization
+    value: 'Bearer {{token}}'
+tests: |-
+  pm.test("Status is 200 or 204", function () {
+    pm.expect(pm.response.code).to.be.oneOf([200, 204]);
+  });

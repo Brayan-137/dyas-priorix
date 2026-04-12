@@ -1,0 +1,17 @@
+$kind: http-request
+name: List Activities
+method: GET
+url: '{{base_url_core}}/activities'
+order: 1000
+headers:
+  - key: Authorization
+    value: 'Bearer {{token}}'
+tests: |-
+  pm.test("Status is 200 OK", function () {
+    pm.response.to.have.status(200);
+  });
+
+  pm.test("Response is an array", function () {
+    const jsonData = pm.response.json();
+    pm.expect(jsonData).to.be.an('array');
+  });
