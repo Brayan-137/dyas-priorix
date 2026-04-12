@@ -21,10 +21,13 @@ class StatisticsController extends Controller
     {
         $data = $request->validate([
             'activity_id' => 'required|integer|min:1',
+            'user_id' => 'sometimes|integer|min:1',
         ]);
 
+        $userId = $request->attributes->get('internal_user_id') ?? auth('api')->id();
+
         $summary = $this->statisticsService->recordActivityCompletion(
-            auth('api')->id(),
+            $userId,
             $data['activity_id']
         );
 

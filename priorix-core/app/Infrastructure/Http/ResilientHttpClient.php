@@ -23,6 +23,7 @@ class ResilientHttpClient
         $action = function () use ($url, $data, $token) {
             $headers = [
                 'X-Internal-Service' => 'priorix-core',
+                'X-Internal-Service-Secret' => config('resilience.internal_service_secret'),
                 'Accept'             => 'application/json',
             ];
 
@@ -35,17 +36,24 @@ class ResilientHttpClient
                 ->post($url, $data);
 
             if ($response->failed()) {
-                throw new \RuntimeException(
-                    "HTTP {$response->status()} from {$url}"
-                );
+                $message = "HTTP {$response->status()} from {$url}";
+                $body = trim($response->body());
+                if ($body !== '') {
+                    $message .= " - {$body}";
+                }
+                throw new \RuntimeException($message);
             }
 
             return $response->json();
         };
 
-        $defaultFallback = $fallback ?? function () use ($url) {
-            Log::warning("Using fallback for {$url}");
-            return ['status' => 'fallback', 'service_unavailable' => true];
+        $defaultFallback = $fallback ?? function (?\Throwable $exception = null) use ($url) {
+            Log::warning("Using fallback for {$url}" . ($exception ? ": {$exception->getMessage()}" : ''));
+            return [
+                'status' => 'fallback',
+                'service_unavailable' => true,
+                'reason' => $exception?->getMessage(),
+            ];
         };
 
         return $breaker->call($action, $defaultFallback);
@@ -56,7 +64,12 @@ class ResilientHttpClient
         $breaker = $this->getBreaker($this->extractServiceName($url));
 
         $action = function () use ($url, $query, $token) {
-            $headers = ['Accept' => 'application/json'];
+            $headers = [
+                'X-Internal-Service' => 'priorix-core',
+                'X-Internal-Service-Secret' => config('resilience.internal_service_secret'),
+                'Accept' => 'application/json',
+            ];
+
             if ($token) {
                 $headers['Authorization'] = "Bearer {$token}";
             }
@@ -66,13 +79,25 @@ class ResilientHttpClient
                 ->get($url, $query);
 
             if ($response->failed()) {
-                throw new \RuntimeException("HTTP {$response->status()} from {$url}");
+                $message = "HTTP {$response->status()} from {$url}";
+                $body = trim($response->body());
+                if ($body !== '') {
+                    $message .= " - {$body}";
+                }
+                throw new \RuntimeException($message);
             }
 
             return $response->json();
         };
 
-        $defaultFallback = $fallback ?? fn() => [];
+        $defaultFallback = $fallback ?? function (?\Throwable $exception = null) use ($url) {
+            Log::warning("Using fallback for {$url}" . ($exception ? ": {$exception->getMessage()}" : ''));
+            return [
+                'status' => 'fallback',
+                'service_unavailable' => true,
+                'reason' => $exception?->getMessage(),
+            ];
+        };
 
         return $breaker->call($action, $defaultFallback);
     }

@@ -14,6 +14,18 @@ class JwtAuthMiddleware
 {
     public function handle(Request $request, Closure $next): Response
     {
+        if (
+            $request->header('X-Internal-Service') === 'priorix-core' &&
+            $request->header('X-Internal-Service-Secret') === env('INTERNAL_SERVICE_SECRET')
+        ) {
+            $internalUserId = (int) $request->header('X-Internal-User-Id');
+            if ($internalUserId > 0) {
+                $request->attributes->set('internal_user_id', $internalUserId);
+            }
+
+            return $next($request);
+        }
+
         try {
             JWTAuth::parseToken()->authenticate();
         } catch (TokenExpiredException) {

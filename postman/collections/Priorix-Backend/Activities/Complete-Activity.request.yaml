@@ -1,11 +1,11 @@
 $kind: http-request
 name: Complete Activity
 method: POST
-url: '{{base_url_core}}/activities/{{activity_id}}/complete'
+url: "{{base_url_core}}/activities/{{activity_id}}/complete"
 order: 6000
 headers:
   - key: Authorization
-    value: 'Bearer {{token}}'
+    value: "Bearer {{token}}"
 tests: |-
   pm.test("Status is 200 OK", function () {
     pm.response.to.have.status(200);
@@ -13,6 +13,11 @@ tests: |-
 
   pm.test("Activity is marked as completed", function () {
     const jsonData = pm.response.json();
-    pm.expect(jsonData).to.have.property('status');
-    pm.expect(jsonData.status).to.eql("completed");
+    pm.expect(jsonData).to.have.property('activity');
+    pm.expect(jsonData.activity).to.have.property('status');
+    pm.expect(jsonData.activity.status).to.eql("completed");
+  });
+
+  pm.test("Has Authorization header set", function () {
+    pm.expect(pm.request.headers.get('Authorization')).to.include('Bearer ');
   });

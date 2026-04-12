@@ -26,7 +26,7 @@ class CircuitBreaker
 
         Log::info("CircuitBreaker [{$this->serviceName}]: state={$state}");
 
-        if ($state === self::OPEN)      return $fallback();
+        if ($state === self::OPEN)      return $fallback(null);
         if ($state === self::HALF_OPEN) return $this->executeHalfOpen($action, $fallback);
 
         return $this->executeNormal($action, $fallback);
@@ -46,7 +46,7 @@ class CircuitBreaker
                 Log::critical("CircuitBreaker [{$this->serviceName}]: OPENED after {$this->failureThreshold} failures");
             }
 
-            return $fallback();
+            return $fallback($e);
         }
     }
 
@@ -60,7 +60,7 @@ class CircuitBreaker
         } catch (\Exception $e) {
             $this->openCircuit();
             Log::warning("CircuitBreaker [{$this->serviceName}]: REOPENED after failed probe");
-            return $fallback();
+            return $fallback($e);
         }
     }
 

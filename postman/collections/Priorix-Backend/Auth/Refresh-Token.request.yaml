@@ -1,18 +1,22 @@
 $kind: http-request
 name: Refresh Token
 method: POST
-url: '{{base_url_core}}/auth/refresh'
+url: "{{base_url_core}}/auth/refresh"
 order: 4000
 headers:
   - key: Authorization
-    value: 'Bearer {{token}}'
+    value: "Bearer {{token}}"
 tests: |-
   pm.test("Status is 200 OK", function () {
     pm.response.to.have.status(200);
   });
 
-  pm.test("Response has new token", function () {
+  pm.test("Response has new access_token", function () {
     const jsonData = pm.response.json();
-    pm.expect(jsonData).to.have.property('token');
-    pm.collectionVariables.set('token', jsonData.token);
+    pm.expect(jsonData).to.have.property('access_token');
+    pm.collectionVariables.set('token', jsonData.access_token);
+  });
+
+  pm.test("Has Authorization header set", function () {
+    pm.expect(pm.request.headers.get('Authorization')).to.include('Bearer ');
   });

@@ -17,3 +17,7 @@ tests: |-
     pm.expect(jsonData).to.have.property('name');
     pm.expect(jsonData).to.have.property('email');
   });
+
+  pm.test("Has Authorization header set", function () {
+    pm.expect(pm.request.headers.get('Authorization')).to.include('Bearer ');
+  });

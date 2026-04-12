@@ -1,7 +1,7 @@
 $kind: http-request
 name: Register
 method: POST
-url: '{{base_url_core}}/auth/register'
+url: "{{base_url_core}}/auth/register"
 order: 1000
 headers:
   - key: Content-Type
@@ -19,10 +19,10 @@ tests: |-
     pm.response.to.have.status(201);
   });
 
-  pm.test("Response has token", function () {
+  pm.test("Response has access_token", function () {
     const jsonData = pm.response.json();
-    pm.expect(jsonData).to.have.property('token');
-    pm.collectionVariables.set('token', jsonData.token);
+    pm.expect(jsonData).to.have.property('access_token');
+    pm.collectionVariables.set('token', jsonData.access_token);
   });
 
   pm.test("Response has user object", function () {

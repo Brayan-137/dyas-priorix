@@ -22,10 +22,13 @@ class GamificationController extends Controller
         $data = $request->validate([
             'type' => 'required|string|max:100',
             'xp_reward' => 'required|integer|min:0',
+            'user_id' => 'sometimes|integer|min:1',
         ]);
 
+        $userId = $request->attributes->get('internal_user_id') ?? auth('api')->id();
+
         $result = $this->gamificationService->updateExperience(
-            auth('api')->id(),
+            $userId,
             $data['type'],
             $data['xp_reward']
         );

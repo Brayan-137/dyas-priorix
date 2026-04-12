@@ -16,3 +16,7 @@ tests: |-
     pm.expect(jsonData).to.have.property('message');
     pm.collectionVariables.set('token', '');
   });
+
+  pm.test("Has Authorization header set", function () {
+    pm.expect(pm.request.headers.get('Authorization')).to.include('Bearer ');
+  });

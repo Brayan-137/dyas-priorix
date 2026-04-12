@@ -47,15 +47,15 @@ class ActivityService
         $this->getActivity($activityId, $userId)->delete();
     }
 
-    public function completeActivity(int $activityId, int $userId, ?string $token = null): array
+    public function completeActivity(int $activityId, int $userId): array
     {
         $activity = $this->getActivity($activityId, $userId);
 
         $activity->markAsCompleted();
 
         $xpReward = $this->calculateXpReward($activity);
-        $gamificationResult = $this->notifyGamification($userId, $activity, $xpReward, $token);
-        $statisticsResult = $this->notifyStatistics($userId, $activity, $token);
+        $gamificationResult = $this->notifyGamification($userId, $activity, $xpReward);
+        $statisticsResult = $this->notifyStatistics($userId, $activity);
 
         return [
             'activity' => $activity,
@@ -64,17 +64,17 @@ class ActivityService
         ];
     }
 
-    private function notifyGamification(int $userId, Activity $activity, int $xpReward, ?string $token = null): array
+    private function notifyGamification(int $userId, Activity $activity, int $xpReward): array
     {
         try {
             $url = rtrim(config('resilience.services.gamification'), '/');
             return $this->httpClient->post(
                 "{$url}/update-experience",
                 [
+                    'user_id' => $userId,
                     'type' => 'activity_completed',
                     'xp_reward' => $xpReward,
-                ],
-                $token
+                ]
             );
         } catch (\Exception $e) {
             Log::warning('Failed to notify gamification: ' . $e->getMessage());
@@ -82,14 +82,16 @@ class ActivityService
         }
     }
 
-    private function notifyStatistics(int $userId, Activity $activity, ?string $token = null): array
+    private function notifyStatistics(int $userId, Activity $activity): array
     {
         try {
             $url = rtrim(config('resilience.services.statistics'), '/');
             return $this->httpClient->post(
                 "{$url}/record-activity",
-                ['activity_id' => $activity->id],
-                $token
+                [
+                    'user_id' => $userId,
+                    'activity_id' => $activity->id,
+                ]
             );
         } catch (\Exception $e) {
             Log::warning('Failed to notify statistics: ' . $e->getMessage());

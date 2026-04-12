@@ -27,3 +27,7 @@ tests: |-
     pm.expect(jsonData.status).to.eql("in_progress");
     pm.expect(jsonData.priority).to.eql("media");
   });
+
+  pm.test("Has Authorization header set", function () {
+    pm.expect(pm.request.headers.get('Authorization')).to.include('Bearer ');
+  });

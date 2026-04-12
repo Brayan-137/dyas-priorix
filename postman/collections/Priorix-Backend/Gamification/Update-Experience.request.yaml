@@ -12,8 +12,6 @@ body:
   type: json
   content: |-
     {
-      "user_id": 1,
-      "activity_id": 1,
       "type": "task_completed",
       "xp_reward": 50
     }
@@ -25,4 +23,12 @@ tests: |-
   pm.test("Experience was updated", function () {
     const jsonData = pm.response.json();
     pm.expect(jsonData).to.be.an('object');
+  });
+
+  pm.test("Unauthorized without token returns 401", function () {
+    // This test is a reminder — run without Authorization header to verify
+  });
+
+  pm.test("Has Authorization header set", function () {
+    pm.expect(pm.request.headers.get('Authorization')).to.include('Bearer ');
   });

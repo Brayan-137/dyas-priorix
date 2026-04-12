@@ -11,4 +11,6 @@ return [
         'gamification' => env('GAMIFICATION_SERVICE_URL', 'http://gamification/api/gamification'),
         'statistics'   => env('STATISTICS_SERVICE_URL', 'http://gamification/api/statistics'),
     ],
+
+    'internal_service_secret' => env('INTERNAL_SERVICE_SECRET', 'change-me'),
 ];

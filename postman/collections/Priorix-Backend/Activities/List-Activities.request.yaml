@@ -15,3 +15,7 @@ tests: |-
     const jsonData = pm.response.json();
     pm.expect(jsonData).to.be.an('array');
   });
+
+  pm.test("Has Authorization header set", function () {
+    pm.expect(pm.request.headers.get('Authorization')).to.include('Bearer ');
+  });

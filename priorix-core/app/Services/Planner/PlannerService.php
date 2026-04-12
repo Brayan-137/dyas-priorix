@@ -135,6 +135,7 @@ class PlannerService
             $this->httpClient->post(
                 "{$url}/update-experience",
                 [
+                    'user_id' => $userId,
                     'type' => $event,
                     'xp_reward' => 0,
                 ]

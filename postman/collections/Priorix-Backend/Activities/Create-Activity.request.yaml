@@ -40,3 +40,7 @@ tests: |-
     const jsonData = pm.response.json();
     pm.expect(jsonData.title).to.eql("Study for exam");
   });
+
+  pm.test("Has Authorization header set", function () {
+    pm.expect(pm.request.headers.get('Authorization')).to.include('Bearer ');
+  });
