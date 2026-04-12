@@ -16,16 +16,22 @@ class ResilientHttpClient
         $this->timeout = config('resilience.circuit_breaker.timeout', 5);
     }
 
-    public function post(string $url, array $data = [], ?callable $fallback = null): array
+    public function post(string $url, array $data = [], ?string $token = null, ?callable $fallback = null): array
     {
         $breaker = $this->getBreaker($this->extractServiceName($url));
 
-        $action = function () use ($url, $data) {
+        $action = function () use ($url, $data, $token) {
+            $headers = [
+                'X-Internal-Service' => 'priorix-core',
+                'Accept'             => 'application/json',
+            ];
+
+            if ($token) {
+                $headers['Authorization'] = "Bearer {$token}";
+            }
+
             $response = Http::timeout($this->timeout)
-                ->withHeaders([
-                    'X-Internal-Service' => 'priorix-core',
-                    'Accept'             => 'application/json',
-                ])
+                ->withHeaders($headers)
                 ->post($url, $data);
 
             if ($response->failed()) {
@@ -45,13 +51,18 @@ class ResilientHttpClient
         return $breaker->call($action, $defaultFallback);
     }
 
-    public function get(string $url, array $query = [], ?callable $fallback = null): array
+    public function get(string $url, array $query = [], ?string $token = null, ?callable $fallback = null): array
     {
         $breaker = $this->getBreaker($this->extractServiceName($url));
 
-        $action = function () use ($url, $query) {
+        $action = function () use ($url, $query, $token) {
+            $headers = ['Accept' => 'application/json'];
+            if ($token) {
+                $headers['Authorization'] = "Bearer {$token}";
+            }
+
             $response = Http::timeout($this->timeout)
-                ->withHeaders(['Accept' => 'application/json'])
+                ->withHeaders($headers)
                 ->get($url, $query);
 
             if ($response->failed()) {

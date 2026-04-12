@@ -49,9 +49,10 @@ class ActivityController extends Controller
         return response()->json(null, 204);
     }
 
-    public function complete(int $id): JsonResponse
+    public function complete(Request $request, int $id): JsonResponse
     {
-        $result = $this->activityService->completeActivity($id, auth('api')->id());
+        $token = $request->bearerToken();
+        $result = $this->activityService->completeActivity($id, auth('api')->id(), $token);
 
         return response()->json($result);
     }

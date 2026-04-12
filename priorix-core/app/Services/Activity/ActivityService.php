@@ -47,18 +47,15 @@ class ActivityService
         $this->getActivity($activityId, $userId)->delete();
     }
 
-    public function completeActivity(int $activityId, int $userId): array
+    public function completeActivity(int $activityId, int $userId, ?string $token = null): array
     {
         $activity = $this->getActivity($activityId, $userId);
 
         $activity->markAsCompleted();
 
-        $gamificationResult = $this->notifyGamification($userId, 'activity_completed', [
-            'activity_id' => $activity->id,
-            'title' => $activity->title,
-            'type' => $activity->type,
-        ]);
-        $statisticsResult = $this->notifyStatistics($userId, $activity);
+        $xpReward = $this->calculateXpReward($activity);
+        $gamificationResult = $this->notifyGamification($userId, $activity, $xpReward, $token);
+        $statisticsResult = $this->notifyStatistics($userId, $activity, $token);
 
         return [
             'activity' => $activity,
@@ -67,31 +64,46 @@ class ActivityService
         ];
     }
 
-    private function notifyGamification(int $userId, string $event, array $payload = []): array
+    private function notifyGamification(int $userId, Activity $activity, int $xpReward, ?string $token = null): array
     {
         try {
-            return $this->httpClient->post('priorix-gamification/api/gamification/event', [
-                'user_id' => $userId,
-                'event' => $event,
-                'payload' => $payload,
-            ]);
+            $url = rtrim(config('resilience.services.gamification'), '/');
+            return $this->httpClient->post(
+                "{$url}/update-experience",
+                [
+                    'type' => 'activity_completed',
+                    'xp_reward' => $xpReward,
+                ],
+                $token
+            );
         } catch (\Exception $e) {
             Log::warning('Failed to notify gamification: ' . $e->getMessage());
             return ['error' => $e->getMessage()];
         }
     }
 
-    private function notifyStatistics(int $userId, Activity $activity): array
+    private function notifyStatistics(int $userId, Activity $activity, ?string $token = null): array
     {
         try {
-            return $this->httpClient->post('priorix-gamification/api/statistics/event', [
-                'user_id' => $userId,
-                'activity_id' => $activity->id,
-                'event' => 'activity_completed',
-            ]);
+            $url = rtrim(config('resilience.services.statistics'), '/');
+            return $this->httpClient->post(
+                "{$url}/record-activity",
+                ['activity_id' => $activity->id],
+                $token
+            );
         } catch (\Exception $e) {
             Log::warning('Failed to notify statistics: ' . $e->getMessage());
             return ['error' => $e->getMessage()];
         }
+    }
+
+    private function calculateXpReward(Activity $activity): int
+    {
+        $priorityMap = ['baja' => 10, 'media' => 20, 'alta' => 30];
+        $baseXp = $priorityMap[$activity->priority] ?? 10;
+
+        $estimatedBonus = min(50, (int) ($activity->estimated_minutes / 10));
+
+        return $baseXp + $estimatedBonus;
     }
 }

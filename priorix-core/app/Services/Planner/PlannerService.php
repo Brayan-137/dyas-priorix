@@ -131,10 +131,14 @@ class PlannerService
     private function notifyGamification(int $userId, string $event): void
     {
         try {
-            $this->httpClient->post('priorix-gamification/api/gamification/event', [
-                'user_id' => $userId,
-                'event' => $event,
-            ]);
+            $url = rtrim(config('resilience.services.gamification'), '/');
+            $this->httpClient->post(
+                "{$url}/update-experience",
+                [
+                    'type' => $event,
+                    'xp_reward' => 0,
+                ]
+            );
         } catch (\Exception $e) {
             Log::warning('Failed to notify gamification: ' . $e->getMessage());
         }
