@@ -3,6 +3,7 @@
 namespace App\Services\Planner;
 
 use App\Models\Activity;
+use App\Models\Task;
 use Carbon\Carbon;
 
 class AvailabilityManager
@@ -18,7 +19,7 @@ class AvailabilityManager
             $workEnd = $current->copy()->setTime(21, 0);
             
             // Get fixed tasks for the day
-            $fixedTasks = \App\Models\Task::whereHas('activity', function ($query) use ($userId) {
+            $fixedTasks = Task::whereHas('activity', function ($query) use ($userId) {
                 $query->where('user_id', $userId)->where('is_fixed', true);
             })
             ->whereDate('scheduled_at', $current->toDateString())

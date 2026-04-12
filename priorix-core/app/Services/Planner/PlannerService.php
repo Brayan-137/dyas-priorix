@@ -38,19 +38,18 @@ class PlannerService
             ->where('status', 'pending')
             ->get();
 
-        // Score priorities
-        $scoredActivities = $this->scorer->scoreActivities($activities);
+        $activityIds = $activities->pluck('id')->toArray();
+        $this->clearPendingTasksForActivities($activityIds);
 
-        // Get available slots (e.g., next 7 days, 9-5 work hours)
+        $scoredActivities = $this->scorer->scoreActivities($activities);
         $availableSlots = $this->availability->getAvailableSlots($userId, now(), now()->addDays(7));
 
-        // Generate plan
         $plan = $this->algorithm->generatePlan($scoredActivities, $availableSlots);
 
-        // Create Task records
-        $this->createTasksFromPlan($plan, $userId);
+        if (!empty($plan['tasks'])) {
+            $this->createTasksFromPlan($plan, $userId);
+        }
 
-        // Notify gamification service (with fallback)
         $this->notifyGamification($userId, 'plan_generated');
 
         return $plan;
@@ -63,54 +62,68 @@ class PlannerService
     {
         $activity = Activity::findOrFail($activityId);
         $newStart = Carbon::parse($newDateTime);
-        
-        // Get existing tasks
-        $existingTasks = Task::where('activity_id', $activityId)->get();
-        
-        // Calculate remaining time needed
-        $completedMinutes = $existingTasks->sum('duration_minutes');
-        $remainingMinutes = $activity->estimated_minutes - $completedMinutes;
-        
+
+        $completedMinutes = Task::where('activity_id', $activityId)
+            ->where('status', 'completed')
+            ->sum('duration_minutes');
+
+        $remainingMinutes = max(0, $activity->estimated_minutes - $completedMinutes);
         if ($remainingMinutes <= 0) {
-            return true; // Already completed
+            return true;
         }
-        
-        // Get available slots starting from newDateTime
+
+        Task::where('activity_id', $activityId)
+            ->where('status', 'pending')
+            ->delete();
+
         $availableSlots = $this->availability->getAvailableSlots($activity->user_id, $newStart, $newStart->copy()->addDays(7));
         $availableSlots = array_filter($availableSlots, fn($slot) => $slot['start'] >= $newStart);
-        
-        // Schedule remaining sessions
-        $scheduled = 0;
+
         $maxSessions = $activity->max_sessions ?? PHP_INT_MAX;
-        
+        $scheduled = 0;
+
         foreach ($availableSlots as $slot) {
             if ($scheduled >= $maxSessions || $remainingMinutes <= 0) {
                 break;
             }
-            
+
             $sessionDuration = min($activity->max_session_minutes, $slot['duration'], $remainingMinutes);
-            
+            if ($sessionDuration <= 0) {
+                continue;
+            }
+
             Task::create([
                 'activity_id' => $activityId,
+                'title' => $activity->title,
                 'scheduled_at' => $slot['start'],
                 'duration_minutes' => $sessionDuration,
             ]);
-            
+
             $remainingMinutes -= $sessionDuration;
             $scheduled++;
         }
-        
+
         return $remainingMinutes <= 0;
+    }
+
+    private function clearPendingTasksForActivities(array $activityIds): void
+    {
+        Task::whereIn('activity_id', $activityIds)
+            ->where('status', 'pending')
+            ->delete();
     }
 
     private function createTasksFromPlan(array $plan, int $userId): void
     {
         foreach ($plan['tasks'] as $taskData) {
+            $activity = Activity::find($taskData['activity_id']);
+
             Task::create([
                 'activity_id' => $taskData['activity_id'],
+                'title' => $activity ? $activity->title : 'Planned task',
                 'scheduled_at' => $taskData['scheduled_at'],
                 'duration_minutes' => $taskData['duration'],
-                // ... other fields
+                'status' => 'pending',
             ]);
         }
     }

@@ -2,6 +2,7 @@
 
 namespace App\Services\Planner;
 
+use App\Models\Task;
 use Carbon\Carbon;
 
 class SchedulingAlgorithm
@@ -9,60 +10,91 @@ class SchedulingAlgorithm
     public function generatePlan(array $scoredActivities, array $availableSlots): array
     {
         $plan = ['tasks' => []];
-        
-        // Sort by priority score
+
+        usort($availableSlots, fn($a, $b) => $a['start'] <=> $b['start']);
         usort($scoredActivities, fn($a, $b) => $b['score'] <=> $a['score']);
-        
+
         foreach ($scoredActivities as $activity) {
-            $slots = $this->findSuitableSlots($activity, $availableSlots);
-            
-            foreach ($slots as $slot) {
+            if ($activity['is_fixed']) {
+                continue;
+            }
+
+            $remainingMinutes = max(0, (int) $activity['estimated_minutes']);
+            if ($remainingMinutes === 0) {
+                continue;
+            }
+
+            $existingTaskCount = Task::where('activity_id', $activity['id'])->count();
+            $maxSessions = $activity['max_sessions'] ?? PHP_INT_MAX;
+            $sessionsLeft = max(0, $maxSessions - $existingTaskCount);
+            if ($sessionsLeft === 0) {
+                continue;
+            }
+
+            foreach ($availableSlots as $index => $slot) {
+                if ($remainingMinutes <= 0 || $sessionsLeft <= 0) {
+                    break;
+                }
+
+                if (!$this->slotFitsActivity($slot, $activity, $remainingMinutes)) {
+                    continue;
+                }
+
+                $sessionDuration = $this->resolveSessionDuration($activity, $slot['duration'], $remainingMinutes);
+
                 $plan['tasks'][] = [
                     'activity_id' => $activity['id'],
                     'scheduled_at' => $slot['start'],
-                    'duration' => min($activity['max_session_minutes'], $slot['duration']),
+                    'duration' => $sessionDuration,
                 ];
-                
-                // Remove used slot from available
-                $availableSlots = array_filter($availableSlots, fn($s) => $s !== $slot);
+
+                $remainingMinutes -= $sessionDuration;
+                $sessionsLeft--;
+
+                $availableSlots[$index] = $this->consumeSlot($slot, $sessionDuration);
+                if ($availableSlots[$index]['duration'] <= 0) {
+                    array_splice($availableSlots, $index, 1);
+                }
             }
         }
-        
+
         return $plan;
     }
-    
-    private function findSuitableSlots(array $activity, array $slots): array
+
+    private function resolveSessionDuration(array $activity, int $slotDuration, int $remainingMinutes): int
     {
-        // Filter slots that fit the activity's constraints
-        // E.g., respect deadlines, fixed activities, etc.
-        return array_filter($slots, fn($slot) => $this->slotFitsActivity($slot, $activity));
+        return min($activity['max_session_minutes'], $slotDuration, $remainingMinutes);
     }
-    
-    private function slotFitsActivity(array $slot, array $activity): bool
+
+    private function consumeSlot(array $slot, int $minutes): array
     {
-        // Activity must not be fixed
+        $start = Carbon::parse($slot['start'])->addMinutes($minutes);
+
+        return [
+            'start' => $start,
+            'duration' => $slot['duration'] - $minutes,
+        ];
+    }
+
+    private function slotFitsActivity(array $slot, array $activity, int $remainingMinutes): bool
+    {
         if ($activity['is_fixed']) {
             return false;
         }
-        
-        // Slot must be long enough for at least one session
-        if ($slot['duration'] < $activity['max_session_minutes']) {
+
+        if ($remainingMinutes <= 0) {
             return false;
         }
-        
-        // If deadline exists, slot must start before deadline
+
+        $minimumDuration = min($activity['max_session_minutes'], $remainingMinutes);
+        if ($slot['duration'] < $minimumDuration) {
+            return false;
+        }
+
         if ($activity['deadline'] && Carbon::parse($slot['start'])->gte(Carbon::parse($activity['deadline']))) {
             return false;
         }
-        
-        // Check max_sessions: count existing tasks for this activity
-        $existingTasksCount = \App\Models\Task::where('activity_id', $activity['id'])->count();
-        if ($activity['max_sessions'] && $existingTasksCount >= $activity['max_sessions']) {
-            return false;
-        }
-        
-        // For repeating activities, ensure not scheduling on wrong days (but for now, assume ok)
-        
+
         return true;
     }
 }

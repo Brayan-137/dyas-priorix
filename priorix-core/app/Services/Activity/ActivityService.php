@@ -1,73 +1,32 @@
 <?php
 
-namespace App\Services\Planner;
+namespace App\Services\Activity;
 
 use App\Models\Activity;
-use App\Models\Task;
-use App\Models\User;
 use App\Infrastructure\Http\ResilientHttpClient;
 use Illuminate\Support\Facades\Log;
 
-class PlannerService
+class ActivityService
 {
     private ResilientHttpClient $httpClient;
-    private SchedulingAlgorithm $algorithm;
-    private AvailabilityManager $availability;
-    private PriorityScorer $scorer;
 
-    public function __construct(
-        ResilientHttpClient $httpClient,
-        SchedulingAlgorithm $algorithm,
-        AvailabilityManager $availability,
-        PriorityScorer $scorer
-    ) {
+    public function __construct(ResilientHttpClient $httpClient)
+    {
         $this->httpClient = $httpClient;
-        $this->algorithm = $algorithm;
-        $this->availability = $availability;
-        $this->scorer = $scorer;
     }
 
-    /**
-     * Generate a weekly plan for the user.
-     */
-    public function generateWeeklyPlan(int $userId): array
+    public function getActivitiesByUser(int $userId)
     {
-        $user = User::findOrFail($userId);
-        $activities = Activity::where('user_id', $userId)
-            ->where('status', 'pending')
-            ->get();
-
-        // Score priorities
-        $scoredActivities = $this->scorer->scoreActivities($activities);
-
-        // Get available slots (e.g., next 7 days, 9-5 work hours)
-        $availableSlots = $this->availability->getAvailableSlots($userId, now(), now()->addDays(7));
-
-        // Generate plan
-        $plan = $this->algorithm->generatePlan($scoredActivities, $availableSlots);
-
-        // Create Task records
-        $this->createTasksFromPlan($plan, $userId);
-
-        // Notify gamification service (with fallback)
-        $this->notifyGamification($userId, 'plan_generated');
-
-        return $plan;
+        return Activity::where('user_id', $userId)->get();
     }
 
-    /**
-     * Reschedule a single activity.
-     */
-    public function rescheduleActivity(int $activityId, string $newDateTime): bool
+    public function createActivity(array $data, int $userId): Activity
     {
-        $activity = Activity::findOrFail($activityId);
-        
-        // Update activity or tasks
-        // ... logic to reschedule
-        
-        return true;
+        $data['user_id'] = $userId;
+
+        return Activity::create($data);
     }
-    
+
     public function getActivity(int $activityId, int $userId): Activity
     {
         return Activity::where('id', $activityId)
@@ -94,36 +53,45 @@ class PlannerService
 
         $activity->markAsCompleted();
 
-        $gamificationResult = $this->notifyGamification($userId, $activity);
-        $this->notifyStatistics($userId, $activity);
+        $gamificationResult = $this->notifyGamification($userId, 'activity_completed', [
+            'activity_id' => $activity->id,
+            'title' => $activity->title,
+            'type' => $activity->type,
+        ]);
+        $statisticsResult = $this->notifyStatistics($userId, $activity);
 
         return [
-            'activity'     => $activity,
+            'activity' => $activity,
             'gamification' => $gamificationResult,
+            'statistics' => $statisticsResult,
         ];
     }
 
-    private function createTasksFromPlan(array $plan, int $userId): void
-    {
-        foreach ($plan['tasks'] as $taskData) {
-            Task::create([
-                'activity_id' => $taskData['activity_id'],
-                'scheduled_at' => $taskData['scheduled_at'],
-                'duration_minutes' => $taskData['duration'],
-                // ... other fields
-            ]);
-        }
-    }
-
-    private function notifyGamification(int $userId, string $event): void
+    private function notifyGamification(int $userId, string $event, array $payload = []): array
     {
         try {
-            $this->httpClient->post('priorix-gamification/api/gamification/event', [
+            return $this->httpClient->post('priorix-gamification/api/gamification/event', [
                 'user_id' => $userId,
                 'event' => $event,
+                'payload' => $payload,
             ]);
         } catch (\Exception $e) {
             Log::warning('Failed to notify gamification: ' . $e->getMessage());
+            return ['error' => $e->getMessage()];
+        }
+    }
+
+    private function notifyStatistics(int $userId, Activity $activity): array
+    {
+        try {
+            return $this->httpClient->post('priorix-gamification/api/statistics/event', [
+                'user_id' => $userId,
+                'activity_id' => $activity->id,
+                'event' => 'activity_completed',
+            ]);
+        } catch (\Exception $e) {
+            Log::warning('Failed to notify statistics: ' . $e->getMessage());
+            return ['error' => $e->getMessage()];
         }
     }
 }
