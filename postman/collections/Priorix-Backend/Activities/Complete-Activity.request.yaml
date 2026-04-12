@@ -6,6 +6,15 @@ order: 6000
 headers:
   - key: Authorization
     value: "Bearer {{token}}"
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "duration_minutes": 30,
+      "sessions_completed": 1
+    }
 tests: |-
   pm.test("Status is 200 OK", function () {
     pm.response.to.have.status(200);

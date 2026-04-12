@@ -1,18 +1,19 @@
 $kind: http-request
 name: Record Activity
 method: POST
-url: '{{base_url_gamification}}/statistics/record-activity'
+url: "{{base_url_gamification}}/statistics/record-activity"
 order: 2000
 headers:
   - key: Authorization
-    value: 'Bearer {{token}}'
+    value: "Bearer {{token}}"
   - key: Content-Type
     value: application/json
 body:
   type: json
   content: |-
     {
-      "activity_id": {{activity_id}}
+      "activity_id": {{activity_id}},
+      "user_id": 2
     }
 tests: |-
   pm.test("Status is 200 or 201", function () {

@@ -21,11 +21,21 @@ class ResilientHttpClient
         $breaker = $this->getBreaker($this->extractServiceName($url));
 
         $action = function () use ($url, $data, $token) {
+            $internalSecret = config('resilience.internal_service_secret');
+            
             $headers = [
                 'X-Internal-Service' => 'priorix-core',
-                'X-Internal-Service-Secret' => config('resilience.internal_service_secret'),
+                'X-Internal-Service-Secret' => $internalSecret,
                 'Accept'             => 'application/json',
             ];
+
+            Log::debug('ResilientHttpClient.post', [
+                'url' => $url,
+                'headers_set' => [
+                    'X-Internal-Service' => 'priorix-core',
+                    'X-Internal-Service-Secret' => $internalSecret ? 'present' : 'null',
+                ],
+            ]);
 
             if ($token) {
                 $headers['Authorization'] = "Bearer {$token}";
