@@ -10,6 +10,7 @@ use App\Services\Planner\PlannerService;
 use App\Services\Planner\SchedulingAlgorithm;
 use App\Services\Planner\AvailabilityManager;
 use App\Services\Planner\PriorityScorer;
+use App\Services\Task\TaskService;
 
 class ServicesServiceProvider extends ServiceProvider
 {
@@ -20,6 +21,12 @@ class ServicesServiceProvider extends ServiceProvider
         
         $this->app->bind(ActivityService::class, function ($app) {
             return new ActivityService(
+                $app->make(ResilientHttpClient::class)
+            );
+        });
+
+        $this->app->bind(TaskService::class, function ($app) {
+            return new TaskService(
                 $app->make(ResilientHttpClient::class)
             );
         });

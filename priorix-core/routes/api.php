@@ -3,6 +3,8 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ActivityController;
+use App\Http\Controllers\TaskController;
+use App\Http\Controllers\PlannerController;
 
 // Rutas públicas
 Route::prefix('auth')->group(function () {
@@ -21,4 +23,14 @@ Route::middleware('jwt.auth')->group(function () {
 
     Route::apiResource('activities', ActivityController::class);
     Route::post('activities/{id}/complete', [ActivityController::class, 'complete']);
+
+    Route::apiResource('tasks', TaskController::class);
+    Route::post('tasks/{id}/complete', [TaskController::class, 'complete']);
+    Route::get('tasks/date-range', [TaskController::class, 'getByDateRange']);
+    Route::get('tasks/today/pending', [TaskController::class, 'getTodayPending']);
+
+    Route::prefix('planner')->group(function () {
+        Route::post('generate-weekly', [PlannerController::class, 'generateWeeklyPlan']);
+        Route::post('reschedule-activity/{activityId}', [PlannerController::class, 'rescheduleActivity']);
+    });
 });
