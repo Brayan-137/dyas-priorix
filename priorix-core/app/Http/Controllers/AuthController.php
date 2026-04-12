@@ -29,10 +29,10 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        $result = $this->authService->login($data['email'], $data['password']);
-
-        if (!$result) {
-            return response()->json(['error' => 'Credenciales inválidas'], 401);
+        try {
+            $result = $this->authService->login($data['email'], $data['password']);
+        } catch (\RuntimeException $e) {
+            return response()->json(['error' => $e->getMessage()], 401);
         }
 
         return response()->json($result);
