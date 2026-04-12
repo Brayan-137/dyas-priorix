@@ -16,16 +16,31 @@ class ResilientHttpClient
         $this->timeout = config('resilience.circuit_breaker.timeout', 5);
     }
 
-    public function post(string $url, array $data = [], ?string $token = null, ?callable $fallback = null): array
+    public function post(string $url, array $data = [], ?string $token = null, ?callable $fallback = null, ?int $userId = null): array
     {
         $breaker = $this->getBreaker($this->extractServiceName($url));
 
-        $action = function () use ($url, $data, $token) {
+        $action = function () use ($url, $data, $token, $userId) {
+            $internalSecret = config('resilience.internal_service_secret');
+            
             $headers = [
-                'X-Internal-Service' => 'priorix-core',
-                'X-Internal-Service-Secret' => config('resilience.internal_service_secret'),
-                'Accept'             => 'application/json',
+                'X-Internal-Service'        => 'priorix-core',
+                'X-Internal-Service-Secret' => $internalSecret,
+                'Accept'                    => 'application/json',
             ];
+
+            if ($userId !== null) {
+                $headers['X-Internal-User-Id'] = (string) $userId;
+            }
+
+            Log::debug('ResilientHttpClient.post', [
+                'url' => $url,
+                'headers_set' => [
+                    'X-Internal-Service'        => 'priorix-core',
+                    'X-Internal-Service-Secret' => $internalSecret ? 'present' : 'null',
+                    'X-Internal-User-Id'        => $userId ?? 'null',
+                ],
+            ]);
 
             if ($token) {
                 $headers['Authorization'] = "Bearer {$token}";
@@ -50,9 +65,9 @@ class ResilientHttpClient
         $defaultFallback = $fallback ?? function (?\Throwable $exception = null) use ($url) {
             Log::warning("Using fallback for {$url}" . ($exception ? ": {$exception->getMessage()}" : ''));
             return [
-                'status' => 'fallback',
+                'status'              => 'fallback',
                 'service_unavailable' => true,
-                'reason' => $exception?->getMessage(),
+                'reason'              => $exception?->getMessage(),
             ];
         };
 

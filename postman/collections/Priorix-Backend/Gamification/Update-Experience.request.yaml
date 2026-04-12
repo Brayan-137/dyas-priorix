@@ -1,11 +1,11 @@
 $kind: http-request
 name: Update Experience
 method: POST
-url: '{{base_url_gamification}}/gamification/update-experience'
+url: "{{base_url_gamification}}/gamification/update-experience"
 order: 2000
 headers:
   - key: Authorization
-    value: 'Bearer {{token}}'
+    value: "Bearer {{token}}"
   - key: Content-Type
     value: application/json
 body:
@@ -13,7 +13,8 @@ body:
   content: |-
     {
       "type": "task_completed",
-      "xp_reward": 50
+      "xp_reward": 50,
+      "user_id": 2
     }
 tests: |-
   pm.test("Status is 200 OK", function () {

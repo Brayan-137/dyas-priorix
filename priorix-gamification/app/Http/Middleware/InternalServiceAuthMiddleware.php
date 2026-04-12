@@ -10,7 +10,7 @@ use PHPOpenSourceSaver\JWTAuth\Exceptions\TokenInvalidException;
 use PHPOpenSourceSaver\JWTAuth\Exceptions\JWTException;
 use Symfony\Component\HttpFoundation\Response;
 
-class JwtAuthMiddleware
+class InternalServiceAuthMiddleware
 {
     public function handle(Request $request, Closure $next): Response
     {

@@ -74,7 +74,8 @@ class ActivityService
                     'user_id' => $userId,
                     'type' => 'activity_completed',
                     'xp_reward' => $xpReward,
-                ]
+                ],
+                userId: $userId
             );
         } catch (\Exception $e) {
             Log::warning('Failed to notify gamification: ' . $e->getMessage());
@@ -91,7 +92,8 @@ class ActivityService
                 [
                     'user_id' => $userId,
                     'activity_id' => $activity->id,
-                ]
+                ],
+                userId: $userId
             );
         } catch (\Exception $e) {
             Log::warning('Failed to notify statistics: ' . $e->getMessage());

@@ -10,8 +10,8 @@ body:
   type: json
   content: |-
     {
-      "email": "john@example.com",
-      "password": "secret123"
+      "email": "joao@example.com",
+      "password": "password"
     }
 tests: |-
   pm.test("Status is 200 OK", function () {

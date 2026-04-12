@@ -13,10 +13,16 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $router->middleware('web')
             ->group(base_path('routes/web.php'));
+        
+        // Debug routes (no middleware)
+        if (file_exists(base_path('routes/debug.php'))) {
+            require base_path('routes/debug.php');
+        }
     })
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
-            'jwt.auth' => \App\Http\Middleware\JwtAuthMiddleware::class,
+            'jwt.auth' => \App\Http\Middleware\InternalServiceAuthMiddleware::class,
+            'internal.auth' => \App\Http\Middleware\InternalServiceAuthMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
