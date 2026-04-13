@@ -17,7 +17,11 @@ class ServicesServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $this->app->singleton(ResilientHttpClient::class);
+        $this->app->singleton(ResilientHttpClient::class, function ($app) {
+            return new ResilientHttpClient(
+                $app->make(\Prometheus\CollectorRegistry::class)
+            );
+        });
         $this->app->singleton(AuthService::class);
         $this->app->singleton(TracingService::class);
 
