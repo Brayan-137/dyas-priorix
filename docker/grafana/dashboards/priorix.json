@@ -1,0 +1,67 @@
+{
+  "title": "Priorix — Observabilidad",
+  "__inputs": [],
+  "__requires": [],
+  "datasource": { "type": "prometheus", "uid": "prometheus" },
+  "panels": [
+    {
+      "title": "Peticiones por servicio (rate 5m)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "rate(priorix_core_http_requests_total[5m])",
+          "legendFormat": "core — {{route}} {{status}}"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "rate(priorix_gamification_http_requests_total[5m])",
+          "legendFormat": "gamification — {{route}} {{status}}"
+        }
+      ]
+    },
+    {
+      "title": "Estado del Circuit Breaker",
+      "type": "stat",
+      "gridPos": { "x": 12, "y": 0, "w": 6, "h": 8 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "priorix_core_circuit_breaker_state",
+          "legendFormat": "{{service}}"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "thresholds": {
+          "steps": [
+            { "value": 0, "color": "green" },
+            { "value": 1, "color": "red" },
+            { "value": 2, "color": "yellow" }
+          ]
+        }
+      }
+    },
+    {
+      "title": "Latencia promedio (ms)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "rate(priorix_core_http_request_duration_seconds_sum[5m]) / rate(priorix_core_http_request_duration_seconds_count[5m]) * 1000",
+          "legendFormat": "core"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "rate(priorix_gamification_http_request_duration_seconds_sum[5m]) / rate(priorix_gamification_http_request_duration_seconds_count[5m]) * 1000",
+          "legendFormat": "gamification"
+        }
+      ]
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 38,
+  "time": { "from": "now-15m", "to": "now" }
+}

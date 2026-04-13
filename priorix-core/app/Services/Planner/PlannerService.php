@@ -8,51 +8,59 @@ use App\Models\User;
 use App\Infrastructure\Http\ResilientHttpClient;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
+use App\Infrastructure\Observability\TracingService;
 
 class PlannerService
 {
-    private ResilientHttpClient $httpClient;
-    private SchedulingAlgorithm $algorithm;
-    private AvailabilityManager $availability;
-    private PriorityScorer $scorer;
-
     public function __construct(
-        ResilientHttpClient $httpClient,
-        SchedulingAlgorithm $algorithm,
-        AvailabilityManager $availability,
-        PriorityScorer $scorer
-    ) {
-        $this->httpClient = $httpClient;
-        $this->algorithm = $algorithm;
-        $this->availability = $availability;
-        $this->scorer = $scorer;
-    }
+        private ResilientHttpClient $httpClient,
+        private SchedulingAlgorithm $algorithm,
+        private AvailabilityManager $availability,
+        private PriorityScorer $scorer,
+        private TracingService $tracing,
+    ) {}
 
     /**
      * Generate a weekly plan for the user.
      */
     public function generateWeeklyPlan(int $userId): array
     {
-        $user = User::findOrFail($userId);
-        $activities = Activity::where('user_id', $userId)
-            ->where('status', 'pending')
-            ->get();
+        return $this->tracing->trace('planner.generate_weekly_plan', function () use ($userId) {
 
-        $activityIds = $activities->pluck('id')->toArray();
-        $this->clearPendingTasksForActivities($activityIds);
+            $activities = $this->tracing->trace('planner.fetch_activities', function () use ($userId) {
+                User::findOrFail($userId);
+                return Activity::where('user_id', $userId)->where('status', 'pending')->get();
+            }, ['user.id' => $userId]);
 
-        $scoredActivities = $this->scorer->scoreActivities($activities);
-        $availableSlots = $this->availability->getAvailableSlots($userId, now(), now()->addDays(7));
+            $this->tracing->trace('planner.clear_pending_tasks', fn() =>
+                $this->clearPendingTasksForActivities($activities->pluck('id')->toArray())
+            , ['activities.count' => $activities->count()]);
 
-        $plan = $this->algorithm->generatePlan($scoredActivities, $availableSlots);
+            $scoredActivities = $this->tracing->trace('planner.score_activities', fn() =>
+                $this->scorer->scoreActivities($activities)
+            , ['activities.count' => $activities->count()]);
 
-        if (!empty($plan['tasks'])) {
-            $this->createTasksFromPlan($plan, $userId);
-        }
+            $availableSlots = $this->tracing->trace('planner.get_available_slots', fn() =>
+                $this->availability->getAvailableSlots($userId, now(), now()->addDays(7))
+            , ['user.id' => $userId]);
 
-        $this->notifyGamification($userId, 'plan_generated');
+            $plan = $this->tracing->trace('planner.run_algorithm', fn() =>
+                $this->algorithm->generatePlan($scoredActivities, $availableSlots)
+            , ['slots.count' => count($availableSlots)]);
 
-        return $plan;
+            if (!empty($plan['tasks'])) {
+                $this->tracing->trace('planner.create_tasks', fn() =>
+                    $this->createTasksFromPlan($plan, $userId)
+                , ['tasks.count' => count($plan['tasks'])]);
+            }
+
+            $this->tracing->trace('gamification.notify_plan_generated', fn() =>
+                $this->notifyGamification($userId, 'plan_generated')
+            , ['user.id' => $userId]);
+
+            return $plan;
+
+        }, ['user.id' => $userId]);
     }
 
     /**

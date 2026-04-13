@@ -5,15 +5,14 @@ namespace App\Services\Activity;
 use App\Models\Activity;
 use App\Infrastructure\Http\ResilientHttpClient;
 use Illuminate\Support\Facades\Log;
+use App\Infrastructure\Observability\TracingService;
 
 class ActivityService
 {
-    private ResilientHttpClient $httpClient;
-
-    public function __construct(ResilientHttpClient $httpClient)
-    {
-        $this->httpClient = $httpClient;
-    }
+    public function __construct(
+        private ResilientHttpClient $httpClient,
+        private TracingService $tracing,
+    ) {}
 
     public function getActivitiesByUser(int $userId)
     {
@@ -49,19 +48,29 @@ class ActivityService
 
     public function completeActivity(int $activityId, int $userId): array
     {
-        $activity = $this->getActivity($activityId, $userId);
+        return $this->tracing->trace('activity.complete', function () use ($activityId, $userId) {
 
-        $activity->markAsCompleted();
+            $activity = $this->tracing->trace('activity.fetch', fn() =>
+                $this->getActivity($activityId, $userId)
+            , ['activity.id' => $activityId]);
 
-        $xpReward = $this->calculateXpReward($activity);
-        $gamificationResult = $this->notifyGamification($userId, $activity, $xpReward);
-        $statisticsResult = $this->notifyStatistics($userId, $activity);
+            $this->tracing->trace('activity.mark_completed', fn() =>
+                $activity->markAsCompleted()
+            , ['activity.priority' => $activity->priority]);
 
-        return [
-            'activity' => $activity,
-            'gamification' => $gamificationResult,
-            'statistics' => $statisticsResult,
-        ];
+            $xpReward = $this->calculateXpReward($activity);
+
+            $gamificationResult = $this->tracing->trace('gamification.update_experience', fn() =>
+                $this->notifyGamification($userId, $activity, $xpReward)
+            , ['xp.reward' => $xpReward]);
+
+            $statisticsResult = $this->tracing->trace('statistics.record_activity', fn() =>
+                $this->notifyStatistics($userId, $activity)
+            , ['activity.id' => $activity->id]);
+
+            return ['activity' => $activity, 'gamification' => $gamificationResult, 'statistics' => $statisticsResult];
+
+        }, ['activity.id' => $activityId, 'user.id' => $userId]);
     }
 
     private function notifyGamification(int $userId, Activity $activity, int $xpReward): array

@@ -20,6 +20,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'jwt.auth' => \App\Http\Middleware\JwtAuthMiddleware::class,
         ]);
+
+        $middleware->append(\App\Http\Middleware\PrometheusMiddleware::class);
+        $middleware->append(\App\Http\Middleware\TracingMiddleware::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

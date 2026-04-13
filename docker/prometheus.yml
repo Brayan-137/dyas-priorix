@@ -1,16 +1,16 @@
 global:
-  scrape_interval:     15s
+  scrape_interval: 15s
   evaluation_interval: 15s
 
 scrape_configs:
-  - job_name: 'priorix-core'
+  - job_name: "priorix-core"
     static_configs:
-      - targets: ['core:80']
-    metrics_path: '/metrics'
+      - targets: ["core:80"]
+    metrics_path: "/metrics"
     scrape_timeout: 10s
 
-  - job_name: 'priorix-gamification'
+  - job_name: "priorix-gamification"
     static_configs:
-      - targets: ['gamification:80']
-    metrics_path: '/metrics'
+      - targets: ["gamification:80"]
+    metrics_path: "/metrics"
     scrape_timeout: 10s

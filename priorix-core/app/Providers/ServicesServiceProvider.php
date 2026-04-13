@@ -5,6 +5,7 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use App\Services\Activity\ActivityService;
 use App\Infrastructure\Http\ResilientHttpClient;
+use App\Infrastructure\Observability\TracingService;
 use App\Services\Auth\AuthService;
 use App\Services\Planner\PlannerService;
 use App\Services\Planner\SchedulingAlgorithm;
@@ -18,29 +19,33 @@ class ServicesServiceProvider extends ServiceProvider
     {
         $this->app->singleton(ResilientHttpClient::class);
         $this->app->singleton(AuthService::class);
-        
+        $this->app->singleton(TracingService::class);
+
         $this->app->bind(ActivityService::class, function ($app) {
             return new ActivityService(
-                $app->make(ResilientHttpClient::class)
+                $app->make(ResilientHttpClient::class),
+                $app->make(TracingService::class) 
             );
         });
 
         $this->app->bind(TaskService::class, function ($app) {
             return new TaskService(
-                $app->make(ResilientHttpClient::class)
+                $app->make(ResilientHttpClient::class),
+                $app->make(TracingService::class) 
             );
         });
 
         $this->app->bind(SchedulingAlgorithm::class);
         $this->app->bind(AvailabilityManager::class);
         $this->app->bind(PriorityScorer::class);
-        
+
         $this->app->bind(PlannerService::class, function ($app) {
             return new PlannerService(
                 $app->make(ResilientHttpClient::class),
                 $app->make(SchedulingAlgorithm::class),
                 $app->make(AvailabilityManager::class),
-                $app->make(PriorityScorer::class)
+                $app->make(PriorityScorer::class),
+                $app->make(TracingService::class) 
             );
         });
     }

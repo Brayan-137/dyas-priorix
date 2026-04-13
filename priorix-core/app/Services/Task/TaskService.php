@@ -7,15 +7,14 @@ use App\Models\Activity;
 use App\Infrastructure\Http\ResilientHttpClient;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Database\Eloquent\Collection;
+use App\Infrastructure\Observability\TracingService;
 
 class TaskService
 {
-    private ResilientHttpClient $httpClient;
-
-    public function __construct(ResilientHttpClient $httpClient)
-    {
-        $this->httpClient = $httpClient;
-    }
+    public function __construct(
+        private ResilientHttpClient $httpClient,
+        private TracingService $tracing,
+    ) {}
 
     /**
      * Get tasks for a user with optional filters
@@ -59,21 +58,27 @@ class TaskService
      */
     public function completeTask(int $taskId, int $userId): array
     {
-        $task = $this->getTask($taskId, $userId);
+        return $this->tracing->trace('task.complete', function () use ($taskId, $userId) {
 
-        if ($task->status === 'completed') {
-            return ['error' => 'Task is already completed'];
-        }
+            $task = $this->tracing->trace('task.fetch', fn() =>
+                $this->getTask($taskId, $userId)
+            , ['task.id' => $taskId]);
 
-        $task->update(['status' => 'completed']);
+            if ($task->status === 'completed') {
+                return ['error' => 'Task is already completed'];
+            }
 
-        // Notify gamification service
-        $gamificationResult = $this->notifyGamification($userId, $task);
+            $this->tracing->trace('task.mark_completed', fn() =>
+                $task->update(['status' => 'completed'])
+            , ['task.duration' => $task->duration_minutes]);
 
-        return [
-            'task' => $task->load('activity'),
-            'gamification' => $gamificationResult,
-        ];
+            $gamificationResult = $this->tracing->trace('gamification.update_experience', fn() =>
+                $this->notifyGamification($userId, $task)
+            , ['xp.reward' => 5]);
+
+            return ['task' => $task->load('activity'), 'gamification' => $gamificationResult];
+
+        }, ['task.id' => $taskId, 'user.id' => $userId]);
     }
 
     /**

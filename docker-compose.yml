@@ -1,5 +1,4 @@
 services:
-
   core:
     build:
       context: ./priorix-core
@@ -89,7 +88,7 @@ services:
       - priorix-network
 
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v2.45.0
     volumes:
       - ./docker/prometheus.yml:/etc/prometheus/prometheus.yml
     ports:

@@ -24,6 +24,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'jwt.auth' => \App\Http\Middleware\InternalServiceAuthMiddleware::class,
             'internal.auth' => \App\Http\Middleware\InternalServiceAuthMiddleware::class,
         ]);
+
+        $middleware->append(\App\Http\Middleware\PrometheusMiddleware::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
