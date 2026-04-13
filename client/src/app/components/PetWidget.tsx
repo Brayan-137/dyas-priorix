@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, Trophy, Star } from 'lucide-react';
-import owlImage from "figma:asset/c65e585b4affa0b77cb6cf30af9af32e8c44b19d.png";
+import owlImage from '../../assets/c65e585b4affa0b77cb6cf30af9af32e8c44b19d.png';
 
 interface PetWidgetProps {
   level: number;
