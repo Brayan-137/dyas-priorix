@@ -5,19 +5,14 @@ import { UserStats, Task } from '../types';
 interface StatsViewProps {
   stats: UserStats;
   tasks: Task[];
+  weeklyData?: any;
 }
 
-export const StatsView: React.FC<StatsViewProps> = ({ stats, tasks }) => {
-  // Dummy data for the chart
-  const productivityData = [
-    { day: 'Lun', completed: 4, focus: 120 },
-    { day: 'Mar', completed: 6, focus: 180 },
-    { day: 'Mié', completed: 3, focus: 90 },
-    { day: 'Jue', completed: 8, focus: 240 },
-    { day: 'Vie', completed: 5, focus: 150 },
-    { day: 'Sáb', completed: 2, focus: 60 },
-    { day: 'Dom', completed: 1, focus: 30 },
-  ];
+export const StatsView: React.FC<StatsViewProps> = ({ stats, tasks, weeklyData }) => {
+  // Map backend weekly data to chart format if provided; otherwise render empty chart and a message
+  const productivityData = weeklyData && Array.isArray(weeklyData.days)
+    ? weeklyData.days.map((d: any) => ({ day: d.label ?? d.name ?? d.day, completed: d.completed ?? 0, focus: d.focus ?? d.focus_minutes ?? 0 }))
+    : [];
 
   return (
     <div className="space-y-8 pb-20">
@@ -45,8 +40,11 @@ export const StatsView: React.FC<StatsViewProps> = ({ stats, tasks }) => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 h-96">
           <h3 className="text-lg font-bold text-slate-700 mb-6">Productividad Semanal</h3>
-          <ResponsiveContainer width="100%" height="85%">
-            <AreaChart data={productivityData}>
+          {productivityData.length === 0 ? (
+            <div className="h-64 flex items-center justify-center text-sm text-slate-400">No hay datos semanales disponibles.</div>
+          ) : (
+            <ResponsiveContainer width="100%" height="85%">
+              <AreaChart data={productivityData}>
               <defs>
                 <linearGradient id="colorFocus" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#8884d8" stopOpacity={0.8}/>
@@ -68,8 +66,9 @@ export const StatsView: React.FC<StatsViewProps> = ({ stats, tasks }) => {
                 fill="url(#colorFocus)" 
                 name="Minutos de enfoque"
               />
-            </AreaChart>
-          </ResponsiveContainer>
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 h-96">

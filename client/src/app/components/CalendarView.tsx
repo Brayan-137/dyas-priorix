@@ -19,6 +19,8 @@ interface CalendarViewProps {
   onSelectDate: (date: Date) => void;
   selectedDate: Date;
   onTaskToggle?: (id: string) => void;
+  onEdit?: (task: Task) => void;
+  onDelete?: (id: string) => void;
 }
 
 export const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onAddTask, onSelectDate, selectedDate, onTaskToggle }) => {
@@ -466,10 +468,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ tasks, onAddTask, on
           >
              {/* Header Actions */}
              <div className="flex items-center justify-end gap-1 p-2 bg-slate-800/50 border-b border-slate-700/50">
-               <button className="p-2 hover:bg-slate-700 rounded-full transition-colors text-slate-400 hover:text-white">
+               <button onClick={() => { if (onEdit) onEdit(selectedEvent); }} className="p-2 hover:bg-slate-700 rounded-full transition-colors text-slate-400 hover:text-white">
                  <Edit2 size={16} />
                </button>
-               <button className="p-2 hover:bg-slate-700 rounded-full transition-colors text-slate-400 hover:text-rose-400">
+               <button onClick={() => { if (onDelete) onDelete(selectedEvent.id); setSelectedEvent(null); setReferenceElement(null); }} className="p-2 hover:bg-slate-700 rounded-full transition-colors text-slate-400 hover:text-rose-400">
                  <Trash2 size={16} />
                </button>
                <button className="p-2 hover:bg-slate-700 rounded-full transition-colors text-slate-400 hover:text-white">

@@ -1,9 +1,14 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { LayoutDashboard, Calendar as CalendarIcon, Clock, BarChart2, Plus, LogOut, CheckSquare, Calendar, BookOpen, Settings } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Task, UserStats, PetState, Priority, ItemType, ClassSession, AppSettings } from './types';
+import { listActivities, createActivity, completeActivity, updateActivity, deleteActivity } from '../services/activitiesService';
+import { Toaster, toast } from 'sonner';
+import { getPet, getWeeklyStatistics } from '../services/gamificationService';
+import { me, login as authLogin, logout as authLogout } from '../services/authService';
+import { taskFromBackend } from '../utils/mappers';
 import { Dashboard } from './components/Dashboard';
 import { CalendarView } from './components/CalendarView';
 import { FocusMode } from './components/FocusMode';
@@ -11,39 +16,7 @@ import { StatsView } from './components/StatsView';
 import { ScheduleView } from './components/ScheduleView';
 import { SettingsView } from './components/SettingsView';
 
-// Dummy Data
-const INITIAL_TASKS: Task[] = [
-  { id: '1', type: 'task', title: 'Estudiar Cálculo II', description: 'Repasar integrales definidas para el parcial', date: new Date(new Date().setHours(14, 0)), priority: 'high', status: 'pending', duration: 90 },
-  { id: '2', type: 'task', title: 'Leer capítulo 4 de Historia', description: 'Hacer resumen del capítulo', date: new Date(new Date().setHours(16, 30)), priority: 'medium', status: 'pending', duration: 45 },
-  { id: '3', type: 'task', title: 'Proyecto de Programación', description: 'Implementar backend', date: new Date(new Date().setDate(new Date().getDate() + 1)), priority: 'high', status: 'pending', duration: 120 },
-  { id: '4', type: 'task', title: 'Comprar materiales de Arte', date: new Date(new Date().setDate(new Date().getDate() + 2)), priority: 'low', status: 'pending' },
-  { id: '5', type: 'event', title: 'Reunión de grupo', date: new Date(new Date().setHours(10, 0)), status: 'pending', duration: 60 },
-  { id: '6', type: 'event', title: 'Examen de Física', date: new Date(new Date().setHours(9, 0)), status: 'pending', duration: 90 },
-  { id: '7', type: 'class', title: 'Cálculo II', room: 'A-101', date: new Date(new Date().setHours(8, 0)), status: 'pending', duration: 120 },
-  { id: '8', type: 'class', title: 'Programación', room: 'Lab-B', date: new Date(new Date().setHours(11, 30)), status: 'pending', duration: 90 },
-];
-
-const INITIAL_STATS: UserStats = {
-  level: 5,
-  xp: 450,
-  streak: 12,
-  tasksCompleted: 42,
-  mood: 'happy'
-};
-
-const INITIAL_PET: PetState = {
-  name: 'Owie',
-  stage: 'teen',
-};
-
-const INITIAL_CLASSES: ClassSession[] = [
-  { id: 'c1', day: 1, startTime: '08:00', endTime: '10:00', subject: 'Cálculo II', room: 'A-101', color: 'bg-rose-100 border-rose-200 text-rose-700' },
-  { id: 'c2', day: 1, startTime: '10:30', endTime: '12:00', subject: 'Física I', room: 'Lab-3', color: 'bg-sky-100 border-sky-200 text-sky-700' },
-  { id: 'c3', day: 2, startTime: '09:00', endTime: '11:00', subject: 'Programación', room: 'Sala B', color: 'bg-purple-100 border-purple-200 text-purple-700' },
-  { id: 'c4', day: 3, startTime: '08:00', endTime: '10:00', subject: 'Cálculo II', room: 'A-101', color: 'bg-rose-100 border-rose-200 text-rose-700' },
-  { id: 'c5', day: 4, startTime: '14:00', endTime: '16:00', subject: 'Historia', room: 'C-202', color: 'bg-amber-100 border-amber-200 text-amber-700' },
-  { id: 'c6', day: 5, startTime: '10:00', endTime: '12:00', subject: 'Inglés Avanzado', room: 'D-401', color: 'bg-emerald-100 border-emerald-200 text-emerald-700' },
-];
+// No mock data: initial states are empty and populated from backend on mount
 
 const INITIAL_SETTINGS: AppSettings = {
   theme: 'light',
@@ -64,11 +37,17 @@ const INITIAL_SETTINGS: AppSettings = {
 
 export default function App() {
   const [view, setView] = useState<'dashboard' | 'calendar' | 'schedule' | 'focus' | 'stats' | 'settings'>('dashboard');
-  const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS);
-  const [stats, setStats] = useState<UserStats>(INITIAL_STATS);
-  const [pet, setPet] = useState<PetState>(INITIAL_PET);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [stats, setStats] = useState<UserStats>({ level: 0, xp: 0, streak: 0, tasksCompleted: 0, mood: 'neutral' });
+  const [pet, setPet] = useState<PetState>({ name: '', stage: 'baby' });
+  const [weeklyStatsData, setWeeklyStatsData] = useState<any>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
   const [settings, setSettings] = useState<AppSettings>(INITIAL_SETTINGS);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   // New Task State
   const [newTaskTitle, setNewTaskTitle] = useState('');
@@ -101,6 +80,8 @@ export default function App() {
               tasksCompleted: prev.tasksCompleted + 1
             };
           });
+          // Inform backend about completion
+          try { completeActivity(id); } catch (e) { /* ignore */ }
         }
         return { ...t, status: newStatus };
       }
@@ -111,8 +92,91 @@ export default function App() {
   const openAddModal = (date?: Date) => {
     if (date) setNewTaskDate(date);
     else setNewTaskDate(new Date());
+    setEditingTask(null);
     setShowAddModal(true);
   };
+
+  async function fetchRemoteData() {
+    try {
+      const meRes = await me();
+      if (meRes.ok) setIsAuthenticated(true);
+
+      const listRes = await listActivities();
+      if (listRes.ok && Array.isArray(listRes.data)) {
+        const mapped = listRes.data.map((a: any) => taskFromBackend(a));
+        setTasks(mapped as Task[]);
+      }
+
+      const petRes = await getPet();
+      if (petRes.ok && petRes.data) setPet(petRes.data as PetState);
+
+      const statsRes = await getWeeklyStatistics();
+      if (statsRes.ok && statsRes.data) {
+        // Best-effort: if backend returns summary, attempt to set fields we know
+        const s = statsRes.data;
+        setStats(prev => ({ ...prev, xp: s.xp ?? prev.xp, level: s.level ?? prev.level }));
+        setWeeklyStatsData(s);
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  useEffect(() => {
+    fetchRemoteData();
+  }, []);
+
+  async function handleLogin(e?: React.FormEvent) {
+    if (e) e.preventDefault();
+    try {
+      const res = await authLogin(loginEmail, loginPassword);
+      if (res.ok) {
+        setIsAuthenticated(true);
+        setShowLoginModal(false);
+        setLoginEmail(''); setLoginPassword('');
+        await fetchRemoteData();
+      } else {
+        // Could show toast; keep simple
+        alert('Login failed');
+      }
+    } catch (err) {
+      alert('Login error');
+    }
+  }
+
+  async function handleLogout() {
+    await authLogout();
+    setIsAuthenticated(false);
+    // keep local tasks as fallback
+  }
+
+  // Handlers for edit/delete
+  async function handleDeleteTask(id: string) {
+    try {
+      const res = await deleteActivity(id);
+      if (res.ok) {
+        setTasks(prev => prev.filter(t => t.id !== id));
+        toast.success('Tarea eliminada');
+      } else {
+        setTasks(prev => prev.filter(t => t.id !== id));
+        toast('Eliminada localmente');
+      }
+    } catch (err) {
+      setTasks(prev => prev.filter(t => t.id !== id));
+      toast('Error al eliminar, eliminada localmente');
+    }
+  }
+
+  function handleEditTask(task: Task) {
+    setEditingTask(task);
+    setNewTaskTitle(task.title ?? '');
+    setNewTaskType(task.type ?? 'task');
+    setNewTaskDate(task.date ?? new Date());
+    setNewTaskTime(task.date ? `${task.date.getHours().toString().padStart(2,'0')}:${task.date.getMinutes().toString().padStart(2,'0')}` : '12:00');
+    setNewTaskDuration(task.duration ?? 60);
+    if (task.priority) setNewTaskPriority(task.priority);
+    setShowAddModal(true);
+  }
 
   const addTask = (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,7 +187,7 @@ export default function App() {
     const taskDateTime = new Date(newTaskDate);
     taskDateTime.setHours(hours, minutes, 0, 0);
 
-    const newTask: Task = {
+    const payload: Task = {
       id: Date.now().toString(),
       type: newTaskType,
       title: newTaskTitle,
@@ -133,9 +197,43 @@ export default function App() {
       duration: newTaskDuration
     };
 
-    setTasks([...tasks, newTask]);
-    setNewTaskTitle('');
-    setShowAddModal(false);
+    (async () => {
+      if (editingTask) {
+        try {
+          const res = await updateActivity(editingTask.id, payload);
+          if (res.ok) {
+            setTasks(prev => prev.map(t => t.id === editingTask.id ? { ...payload, id: editingTask.id } : t));
+            toast.success('Tarea actualizada');
+          } else {
+            setTasks(prev => prev.map(t => t.id === editingTask.id ? { ...payload, id: editingTask.id } : t));
+            toast('Actualizada localmente (backend no respondió correctamente)');
+          }
+        } catch (err) {
+          setTasks(prev => prev.map(t => t.id === editingTask.id ? { ...payload, id: editingTask.id } : t));
+          toast('Error al actualizar, cambios aplicados localmente');
+        } finally {
+          setEditingTask(null);
+          setNewTaskTitle('');
+          setShowAddModal(false);
+        }
+      } else {
+        try {
+          const res = await createActivity(payload);
+          if (res.ok && res.data) {
+            const created = res.data;
+            payload.id = String(created.id ?? created._id ?? payload.id);
+          }
+          setTasks(prev => [...prev, payload]);
+          toast.success('Tarea creada');
+        } catch (err) {
+          setTasks(prev => [...prev, payload]);
+          toast('Creada localmente');
+        } finally {
+          setNewTaskTitle('');
+          setShowAddModal(false);
+        }
+      }
+    })();
   };
 
   const handleSessionComplete = (duration: number) => {
@@ -158,6 +256,7 @@ export default function App() {
 
   return (
     <DndProvider backend={HTML5Backend}>
+      <Toaster position="top-right" />
       <div className="flex h-screen bg-slate-50 font-sans text-slate-800 overflow-hidden">
         {/* Sidebar - Solo Iconos */}
         <aside className="w-20 bg-white border-r border-slate-100 flex flex-col justify-between py-6 px-4 z-20 shadow-sm">
@@ -201,12 +300,13 @@ export default function App() {
           </div>
 
           <button 
+            onClick={() => isAuthenticated ? handleLogout() : setShowLoginModal(true)}
             className="flex items-center justify-center p-3 text-slate-400 hover:text-rose-500 transition-colors rounded-xl hover:bg-rose-50 w-full relative group"
-            title="Cerrar Sesión"
+            title={isAuthenticated ? 'Cerrar Sesión' : 'Iniciar Sesión'}
           >
             <LogOut size={22} />
             <div className="absolute left-full ml-2 px-2 py-1 bg-slate-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
-              Cerrar Sesión
+              {isAuthenticated ? 'Cerrar Sesión' : 'Iniciar Sesión'}
             </div>
           </button>
         </aside>
@@ -243,16 +343,18 @@ export default function App() {
                     onSelectDate={() => {}} 
                     selectedDate={new Date()}
                     onTaskToggle={toggleTask}
+                    onEdit={handleEditTask}
+                    onDelete={handleDeleteTask}
                   />
                 )}
-                 {view === 'schedule' && (
-                  <ScheduleView initialClasses={INITIAL_CLASSES} />
+                {view === 'schedule' && (
+                  <ScheduleView />
                 )}
                 {view === 'focus' && (
                   <FocusMode onSessionComplete={handleSessionComplete} />
                 )}
                 {view === 'stats' && (
-                  <StatsView stats={stats} tasks={tasks} />
+                  <StatsView stats={stats} tasks={tasks} weeklyData={weeklyStatsData} />
                 )}
                 {view === 'settings' && (
                   <SettingsView settings={settings} onSettingsChange={setSettings} />
@@ -427,6 +529,44 @@ export default function App() {
                     >
                       Guardar
                     </button>
+                  </div>
+                </form>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+        {/* Login Modal */}
+        <AnimatePresence>
+          {showLoginModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl"
+              >
+                <h2 className="text-xl font-bold mb-4">Iniciar sesión</h2>
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <input
+                    type="email"
+                    placeholder="Correo"
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:outline-none"
+                    required
+                  />
+                  <input
+                    type="password"
+                    placeholder="Contraseña"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:outline-none"
+                    required
+                  />
+
+                  <div className="flex justify-end gap-3">
+                    <button type="button" onClick={() => setShowLoginModal(false)} className="px-4 py-2 text-slate-500">Cancelar</button>
+                    <button type="submit" className="px-6 py-2 bg-indigo-600 text-white rounded-xl">Entrar</button>
                   </div>
                 </form>
               </motion.div>
