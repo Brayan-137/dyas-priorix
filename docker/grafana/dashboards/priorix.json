@@ -1,67 +1,128 @@
 {
-  "title": "Priorix — Observabilidad",
-  "__inputs": [],
-  "__requires": [],
+  "title": "Priorix — Observabilidad Avanzada",
+  "editable": true,
   "datasource": { "type": "prometheus", "uid": "prometheus" },
   "panels": [
     {
-      "title": "Peticiones por servicio (rate 5m)",
+      "title": "Peticiones por servicio y ruta (rate 5m)",
       "type": "timeseries",
       "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
       "targets": [
         {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "expr": "rate(priorix_core_http_requests_total[5m])",
           "legendFormat": "core — {{route}} {{status}}"
         },
         {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "expr": "rate(priorix_gamification_http_requests_total[5m])",
           "legendFormat": "gamification — {{route}} {{status}}"
         }
       ]
     },
     {
-      "title": "Estado del Circuit Breaker",
+      "title": "Estado Actual del Circuit Breaker",
       "type": "stat",
       "gridPos": { "x": 12, "y": 0, "w": 6, "h": 8 },
       "targets": [
         {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "expr": "priorix_core_circuit_breaker_state",
           "legendFormat": "{{service}}"
         }
       ],
       "options": {
         "reduceOptions": { "calcs": ["lastNotNull"] },
-        "thresholds": {
-          "steps": [
-            { "value": 0, "color": "green" },
-            { "value": 1, "color": "red" },
-            { "value": 2, "color": "yellow" }
-          ]
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              {
+                "type": "value",
+                "options": {
+                  "0": { "text": "CLOSED", "color": "green" },
+                  "1": { "text": "OPEN", "color": "red" },
+                  "2": { "text": "HALF-OPEN", "color": "yellow" }
+                }
+              }
+            ]
+          }
         }
       }
     },
     {
-      "title": "Latencia promedio (ms)",
+      "title": "Tasa de Errores (%)",
+      "type": "gauge",
+      "gridPos": { "x": 18, "y": 0, "w": 6, "h": 8 },
+      "targets": [
+        {
+          "expr": "(sum(rate(priorix_core_http_requests_total{status=~\"5..\"}[5m])) / sum(rate(priorix_core_http_requests_total[5m]))) * 100",
+          "legendFormat": "Error Rate %"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "steps": [
+              { "value": null, "color": "green" },
+              { "value": 5, "color": "orange" },
+              { "value": 10, "color": "red" }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Latencia Promedio (ms)",
       "type": "timeseries",
       "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
       "targets": [
         {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "expr": "rate(priorix_core_http_request_duration_seconds_sum[5m]) / rate(priorix_core_http_request_duration_seconds_count[5m]) * 1000",
-          "legendFormat": "core"
+          "legendFormat": "core — {{route}}"
         },
         {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "expr": "rate(priorix_gamification_http_request_duration_seconds_sum[5m]) / rate(priorix_gamification_http_request_duration_seconds_count[5m]) * 1000",
-          "legendFormat": "gamification"
+          "legendFormat": "gamification — {{route}}"
         }
       ]
+    },
+    {
+      "title": "Latencia P95 (ms) - El 95% de los usuarios",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(priorix_core_http_request_duration_seconds_bucket[5m])) by (le, route)) * 1000",
+          "legendFormat": "core — {{route}} (P95)"
+        }
+      ]
+    },
+    {
+      "title": "Historial de Aperturas de Circuito (Trips)",
+      "type": "state-timeline",
+      "gridPos": { "x": 0, "y": 16, "w": 24, "h": 6 },
+      "targets": [
+        {
+          "expr": "priorix_core_circuit_breaker_state",
+          "legendFormat": "Estado: {{service}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": { "text": "OK", "color": "green" },
+                "1": { "text": "FALLO", "color": "red" },
+                "2": { "text": "PROBANDO", "color": "yellow" }
+              }
+            }
+          ]
+        }
+      }
     }
   ],
   "refresh": "10s",
   "schemaVersion": 38,
-  "time": { "from": "now-15m", "to": "now" }
+  "time": { "from": "now-30m", "to": "now" }
 }
