@@ -21,3 +21,7 @@ postman/flows/
 postman/globals/
 postman/mocks/
 postman/specs/
+
+# Client
+client/node_modules/
+client/build/
