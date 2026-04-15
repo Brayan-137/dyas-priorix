@@ -4,14 +4,13 @@ name: Login
 url: "{{base_url_core}}/auth/login"
 method: POST
 headers:
-  - key: Content-Type
-    value: application/json
+  Content-Type: application/json
 body:
   type: json
   content: |-
     {
-      "email": "joao@example.com",
-      "password": "password"
+      "email": "john@example.com",
+      "password": "secret123"
     }
 tests: |-
   pm.test("Status is 200 OK", function () {
