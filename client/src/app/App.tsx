@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
@@ -17,8 +18,11 @@ import { ScheduleView } from './components/ScheduleView';
 import { SettingsView } from './components/SettingsView';
 import { LoginModal } from './components/LoginModal';
 
+
 // No mock data: initial states are empty and populated from backend on mount
 
+
+// Declarar INITIAL_SETTINGS antes del componente App
 const INITIAL_SETTINGS: AppSettings = {
   theme: 'light',
   accentColor: 'indigo',
@@ -49,6 +53,7 @@ export default function App() {
   const [settings, setSettings] = useState<AppSettings>(INITIAL_SETTINGS);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [isAddingTask, setIsAddingTask] = useState(false);
 
   // New Task State
   const [newTaskTitle, setNewTaskTitle] = useState('');
@@ -59,12 +64,12 @@ export default function App() {
   const [newTaskDuration, setNewTaskDuration] = useState<number>(60);
 
   const toggleTask = (id: string) => {
-    setTasks(tasks.map(t => {
+    setTasks(tasks.map((t: Task) => {
       if (t.id === id && t.type === 'task') {
         const newStatus = t.status === 'pending' ? 'completed' : 'pending';
         // Update stats if completing
         if (newStatus === 'completed') {
-          setStats(prev => {
+          setStats((prev: UserStats) => {
             let newXp = prev.xp + 50;
             let newLevel = prev.level;
             const xpNeeded = prev.level * 100; // Example curve
@@ -97,6 +102,25 @@ export default function App() {
     setShowAddModal(true);
   };
 
+
+  // Persistencia local de tareas/eventos
+  const LOCAL_TASKS_KEY = 'PRI_USER_TASKS';
+  const persistTasks = (tasksToSave: Task[]) => {
+    try {
+      localStorage.setItem(LOCAL_TASKS_KEY, JSON.stringify(tasksToSave));
+    } catch {}
+  };
+  const loadTasksFromStorage = (): Task[] => {
+    try {
+      const raw = localStorage.getItem(LOCAL_TASKS_KEY);
+      if (raw) {
+        const arr = JSON.parse(raw);
+        return Array.isArray(arr) ? arr.map(t => ({ ...t, date: t.date ? new Date(t.date) : undefined })) : [];
+      }
+    } catch {}
+    return [];
+  };
+
   async function fetchRemoteData() {
     try {
       const meRes = await me();
@@ -113,9 +137,8 @@ export default function App() {
 
       const statsRes = await getWeeklyStatistics();
       if (statsRes.ok && statsRes.data) {
-        // Best-effort: if backend returns summary, attempt to set fields we know
         const s = statsRes.data;
-        setStats(prev => ({ ...prev, xp: s.xp ?? prev.xp, level: s.level ?? prev.level }));
+        setStats((prev: UserStats) => ({ ...prev, xp: s.xp ?? prev.xp, level: s.level ?? prev.level }));
         setWeeklyStatsData(s);
       }
     } catch (e) {
@@ -123,71 +146,10 @@ export default function App() {
     }
   }
 
-  useEffect(() => {
-    fetchRemoteData();
-  }, []);
-
-  // Mostrar login modal si no está autenticado
-  const handleLoginSuccess = async () => {
-    setIsAuthenticated(true);
-    await fetchRemoteData();
-  };
-
-  async function handleLogin(e?: React.FormEvent) {
-    if (e) e.preventDefault();
-    try {
-      const res = await authLogin(loginEmail, loginPassword);
-      if (res.ok) {
-        setIsAuthenticated(true);
-        setShowLoginModal(false);
-        setLoginEmail(''); setLoginPassword('');
-        await fetchRemoteData();
-      } else {
-        // Could show toast; keep simple
-        alert('Login failed');
-      }
-    } catch (err) {
-      alert('Login error');
-    }
-  }
-
-  async function handleLogout() {
-    await authLogout();
-    setIsAuthenticated(false);
-    // keep local tasks as fallback
-  }
-
-  // Handlers for edit/delete
-  async function handleDeleteTask(id: string) {
-    try {
-      const res = await deleteActivity(id);
-      if (res.ok) {
-        setTasks(prev => prev.filter(t => t.id !== id));
-        toast.success('Tarea eliminada');
-      } else {
-        setTasks(prev => prev.filter(t => t.id !== id));
-        toast('Eliminada localmente');
-      }
-    } catch (err) {
-      setTasks(prev => prev.filter(t => t.id !== id));
-      toast('Error al eliminar, eliminada localmente');
-    }
-  }
-
-  function handleEditTask(task: Task) {
-    setEditingTask(task);
-    setNewTaskTitle(task.title ?? '');
-    setNewTaskType(task.type ?? 'task');
-    setNewTaskDate(task.date ?? new Date());
-    setNewTaskTime(task.date ? `${task.date.getHours().toString().padStart(2,'0')}:${task.date.getMinutes().toString().padStart(2,'0')}` : '12:00');
-    setNewTaskDuration(task.duration ?? 60);
-    if (task.priority) setNewTaskPriority(task.priority);
-    setShowAddModal(true);
-  }
-
-  const addTask = (e: React.FormEvent) => {
+  const addTask = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTaskTitle.trim()) return;
+    if (!newTaskTitle.trim() || isAddingTask) return;
+    setIsAddingTask(true);
 
     // Combine date and time
     const [hours, minutes] = newTaskTime.split(':').map(Number);
@@ -204,47 +166,118 @@ export default function App() {
       duration: newTaskDuration
     };
 
-    (async () => {
-      if (editingTask) {
-        try {
-          const res = await updateActivity(editingTask.id, payload);
-          if (res.ok) {
-            setTasks(prev => prev.map(t => t.id === editingTask.id ? { ...payload, id: editingTask.id } : t));
-            toast.success('Tarea actualizada');
-          } else {
-            setTasks(prev => prev.map(t => t.id === editingTask.id ? { ...payload, id: editingTask.id } : t));
-            toast('Actualizada localmente (backend no respondió correctamente)');
-          }
-        } catch (err) {
-          setTasks(prev => prev.map(t => t.id === editingTask.id ? { ...payload, id: editingTask.id } : t));
-          toast('Error al actualizar, cambios aplicados localmente');
-        } finally {
-          setEditingTask(null);
-          setNewTaskTitle('');
-          setShowAddModal(false);
+    if (editingTask) {
+      try {
+        const res = await updateActivity(editingTask.id, payload);
+        if (res.ok) {
+          setTasks((prev: Task[]) => {
+            const updated = prev.map((t: Task) => t.id === editingTask.id ? { ...payload, id: editingTask.id } : t);
+            persistTasks(updated);
+            return updated;
+          });
+          toast.success('Tarea actualizada');
+        } else {
+          setTasks((prev: Task[]) => {
+            const updated = prev.map((t: Task) => t.id === editingTask.id ? { ...payload, id: editingTask.id } : t);
+            persistTasks(updated);
+            return updated;
+          });
+          toast('Actualizada localmente (backend no respondió correctamente)');
         }
-      } else {
-        try {
-          const res = await createActivity(payload);
-          if (res.ok && res.data) {
-            const created = res.data;
-            payload.id = String(created.id ?? created._id ?? payload.id);
-          }
-          setTasks(prev => [...prev, payload]);
-          toast.success('Tarea creada');
-        } catch (err) {
-          setTasks(prev => [...prev, payload]);
-          toast('Creada localmente');
-        } finally {
-          setNewTaskTitle('');
-          setShowAddModal(false);
-        }
+      } catch (err) {
+        setTasks((prev: Task[]) => {
+          const updated = prev.map((t: Task) => t.id === editingTask.id ? { ...payload, id: editingTask.id } : t);
+          persistTasks(updated);
+          return updated;
+        });
+        toast('Error al actualizar, cambios aplicados localmente');
+      } finally {
+        setEditingTask(null);
+        setNewTaskTitle('');
+        setShowAddModal(false);
+        setIsAddingTask(false);
       }
-    })();
+    } else {
+      try {
+        const res = await createActivity(payload);
+        if (res.ok && res.data) {
+          const created = res.data;
+          payload.id = String(created.id ?? created._id ?? payload.id);
+        }
+        setTasks((prev: Task[]) => {
+          const updated = [...prev, payload];
+          persistTasks(updated);
+          return updated;
+        });
+        toast.success('Tarea creada');
+      } catch (err) {
+        setTasks((prev: Task[]) => {
+          const updated = [...prev, payload];
+          persistTasks(updated);
+          return updated;
+        });
+        toast('Creada localmente');
+      } finally {
+        setNewTaskTitle('');
+        setShowAddModal(false);
+        setIsAddingTask(false);
+      }
+    }
+  };
+  // Handlers para editar y eliminar tareas
+  function handleEditTask(task: Task) {
+    setEditingTask(task);
+    setNewTaskTitle(task.title ?? '');
+    setNewTaskType(task.type ?? 'task');
+    setNewTaskDate(task.date ?? new Date());
+    setNewTaskTime(task.date ? `${task.date.getHours().toString().padStart(2,'0')}:${task.date.getMinutes().toString().padStart(2,'0')}` : '12:00');
+    setNewTaskDuration(task.duration ?? 60);
+    if (task.priority) setNewTaskPriority(task.priority);
+    setShowAddModal(true);
+  }
+
+  async function handleDeleteTask(id: string) {
+    try {
+      const res = await deleteActivity(id);
+      if (res.ok) {
+        setTasks((prev: Task[]) => {
+          const updated = prev.filter((t: Task) => t.id !== id);
+          persistTasks(updated);
+          return updated;
+        });
+        toast.success('Tarea eliminada');
+      } else {
+        setTasks((prev: Task[]) => {
+          const updated = prev.filter((t: Task) => t.id !== id);
+          persistTasks(updated);
+          return updated;
+        });
+        toast('Eliminada localmente');
+      }
+    } catch (err) {
+      setTasks((prev: Task[]) => {
+        const updated = prev.filter((t: Task) => t.id !== id);
+        persistTasks(updated);
+        return updated;
+      });
+      toast('Error al eliminar, eliminada localmente');
+    }
+  }
+
+  // Handler para login exitoso
+  const handleLoginSuccess = async () => {
+    setIsAuthenticated(true);
+    await fetchRemoteData();
   };
 
+  async function handleLogout() {
+    await authLogout();
+    setIsAuthenticated(false);
+    // keep local tasks as fallback
+  }
+
   const handleSessionComplete = (duration: number) => {
-    setStats(prev => {
+    setStats((prev: UserStats) => {
       let newXp = prev.xp + duration; // 1 XP per minute of focus
       let newLevel = prev.level;
       const xpNeeded = prev.level * 100;
@@ -527,7 +560,7 @@ export default function App() {
                     </button>
                     <button
                       type="submit"
-                      disabled={!newTaskTitle.trim()}
+                      disabled={!newTaskTitle.trim() || isAddingTask}
                       className={`px-6 py-2 text-white rounded-xl font-semibold shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all ${
                         newTaskType === 'event' 
                           ? 'bg-sky-500 hover:bg-sky-600 shadow-sky-200' 
@@ -536,46 +569,8 @@ export default function App() {
                           : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200'
                       }`}
                     >
-                      Guardar
+                      {isAddingTask ? 'Guardando...' : 'Guardar'}
                     </button>
-                  </div>
-                </form>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
-        {/* Login Modal */}
-        <AnimatePresence>
-          {showLoginModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl"
-              >
-                <h2 className="text-xl font-bold mb-4">Iniciar sesión</h2>
-                <form onSubmit={handleLogin} className="space-y-4">
-                  <input
-                    type="email"
-                    placeholder="Correo"
-                    value={loginEmail}
-                    onChange={(e) => setLoginEmail(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:outline-none"
-                    required
-                  />
-                  <input
-                    type="password"
-                    placeholder="Contraseña"
-                    value={loginPassword}
-                    onChange={(e) => setLoginPassword(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:outline-none"
-                    required
-                  />
-
-                  <div className="flex justify-end gap-3">
-                    <button type="button" onClick={() => setShowLoginModal(false)} className="px-4 py-2 text-slate-500">Cancelar</button>
-                    <button type="submit" className="px-6 py-2 bg-indigo-600 text-white rounded-xl">Entrar</button>
                   </div>
                 </form>
               </motion.div>
