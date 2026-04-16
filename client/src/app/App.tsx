@@ -15,6 +15,7 @@ import { FocusMode } from './components/FocusMode';
 import { StatsView } from './components/StatsView';
 import { ScheduleView } from './components/ScheduleView';
 import { SettingsView } from './components/SettingsView';
+import { LoginModal } from './components/LoginModal';
 
 // No mock data: initial states are empty and populated from backend on mount
 
@@ -125,6 +126,12 @@ export default function App() {
   useEffect(() => {
     fetchRemoteData();
   }, []);
+
+  // Mostrar login modal si no está autenticado
+  const handleLoginSuccess = async () => {
+    setIsAuthenticated(true);
+    await fetchRemoteData();
+  };
 
   async function handleLogin(e?: React.FormEvent) {
     if (e) e.preventDefault();
@@ -257,7 +264,9 @@ export default function App() {
   return (
     <DndProvider backend={HTML5Backend}>
       <Toaster position="top-right" />
-      <div className="flex h-screen bg-slate-50 font-sans text-slate-800 overflow-hidden">
+      {/* Login modal forzar login al inicio */}
+      {!isAuthenticated && <LoginModal onLoginSuccess={handleLoginSuccess} />}
+      <div className={`flex h-screen bg-slate-50 font-sans text-slate-800 overflow-hidden${!isAuthenticated ? ' blur-sm pointer-events-none select-none' : ''}`}>
         {/* Sidebar - Solo Iconos */}
         <aside className="w-20 bg-white border-r border-slate-100 flex flex-col justify-between py-6 px-4 z-20 shadow-sm">
           <div>

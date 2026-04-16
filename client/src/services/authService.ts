@@ -3,11 +3,10 @@ import { coreRequest, setToken, clearToken } from '../api/client';
 interface LoginPayload { email: string; password: string }
 
 export async function login(email: string, password: string) {
+  // El backend espera email y password, y responde con access_token
   const res = await coreRequest('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
-  if (res.ok && res.data) {
-    // Expecting { token: '...' } or similar
-    const token = (res.data.token ?? res.data.access_token) as string | undefined;
-    if (token) setToken(token);
+  if (res.ok && res.data && res.data.access_token) {
+    setToken(res.data.access_token);
   }
   return res;
 }
