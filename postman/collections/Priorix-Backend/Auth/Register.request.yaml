@@ -1,7 +1,18 @@
 $kind: http-request
 name: Register
 method: POST
-url: "{{base_url_core}}/auth/register"
+url: "{{base_url_core}}/auth/register?name=Usuario
+  Prueba&email=usuario@prueba.com&password=123456"
+queryParams:
+  - key: name
+    value: Usuario Prueba
+    $type: ""
+  - key: email
+    value: usuario@prueba.com
+    $type: ""
+  - key: password
+    value: "123456"
+    $type: ""
 order: 1000
 headers:
   Content-Type: application/json
