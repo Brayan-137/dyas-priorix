@@ -25,4 +25,14 @@ COPY docker/nginx.conf /etc/nginx/sites-available/default
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 EXPOSE 80
+
+# Create a non-root user to run the application
+ARG UID=1000
+ARG GID=1000
+
+RUN groupadd -g ${GID} appgroup && \
+    useradd -u ${UID} -g appgroup -m appuser
+
+USER appuser
+
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
