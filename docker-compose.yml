@@ -3,9 +3,9 @@ services:
     build:
       context: ./priorix-core
       dockerfile: Dockerfile
-        args:
-          UID: ${UID:-1000}
-          GID: ${GID:-1000}
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
     volumes:
       - ./priorix-core:/var/www
       - /var/www/vendor
