@@ -3,19 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Services\Gamification\GamificationService;
-use App\Http\Traits\AuthorizeInternalServiceOrJwt;
+use App\Http\Traits\ResolvesAuthenticatedUser;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
 class GamificationController extends Controller
 {
-    use AuthorizeInternalServiceOrJwt;
+    use ResolvesAuthenticatedUser;
     
     public function __construct(private readonly GamificationService $gamificationService) {}
 
     public function getPetStatus(Request $request): JsonResponse
     {
-        $userId = $this->authorizeRequest($request);
+        $userId = $this->resolveUserId($request);
         
         $status = $this->gamificationService->getPetStatus($userId);
 
@@ -24,7 +24,7 @@ class GamificationController extends Controller
 
     public function updateExperience(Request $request): JsonResponse
     {
-        $userId = $this->authorizeRequest($request);
+        $userId = $this->resolveUserId($request);
         
         $data = $request->validate([
             'type' => 'required|string|max:100',

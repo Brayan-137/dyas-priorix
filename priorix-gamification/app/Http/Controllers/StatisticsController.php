@@ -3,19 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Services\Statistics\StatisticsService;
-use App\Http\Traits\AuthorizeInternalServiceOrJwt;
+use App\Http\Traits\ResolvesAuthenticatedUser;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
 class StatisticsController extends Controller
 {
-    use AuthorizeInternalServiceOrJwt;
+    use ResolvesAuthenticatedUser;
     
     public function __construct(private readonly StatisticsService $statisticsService) {}
 
     public function weekly(Request $request): JsonResponse
     {
-        $userId = $this->authorizeRequest($request);
+        $userId = $this->resolveUserId($request);
         
         $stats = $this->statisticsService->getWeeklyStats($userId);
 
@@ -24,7 +24,7 @@ class StatisticsController extends Controller
 
     public function recordActivity(Request $request): JsonResponse
     {
-        $userId = $this->authorizeRequest($request);
+        $userId = $this->resolveUserId($request);
         
         $data = $request->validate([
             'activity_id' => 'required|integer|min:1',

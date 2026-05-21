@@ -45,7 +45,16 @@ class AuthController extends Controller
 
     public function refresh(): JsonResponse
     {
-        return response()->json($this->authService->refresh());
+        try {
+            $result = $this->authService->refresh();
+        } catch (\RuntimeException $e) {
+            return response()->json([
+                'error' => $e->getMessage(),
+                'code'  => 'SESSION_EXPIRED',
+            ], 401);
+        }
+
+        return response()->json($result);
     }
 
     public function logout(): JsonResponse
