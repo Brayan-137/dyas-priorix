@@ -1,0 +1,104 @@
+{
+  "info": {
+    "name": "Priorix Gamification API Tests",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Pruebas API automatizadas para priorix-gamification usando Postman y Newman."
+  },
+  "item": [
+    {
+      "name": "Get Pet Status",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "X-Internal-Service", "value": "{{internal_service}}" },
+          { "key": "X-Internal-Service-Secret", "value": "{{internal_secret}}" },
+          { "key": "X-Internal-User-Id", "value": "{{user_id}}" }
+        ],
+        "url": { "raw": "{{base_url}}/gamification/pet", "host": ["{{base_url}}"], "path": ["gamification", "pet"] }
+      },
+      "event": [
+        { "listen": "test", "script": { "type": "text/javascript", "exec": [
+          "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+          "pm.test('Pet status has required fields', function () {",
+          "  const json = pm.response.json();",
+          "  pm.expect(json).to.have.property('name');",
+          "  pm.expect(json).to.have.property('level');",
+          "  pm.expect(json).to.have.property('experience');",
+          "  pm.expect(json).to.have.property('next_level_xp');",
+          "});"
+        ] } }
+      ]
+    },
+    {
+      "name": "Update Experience",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "X-Internal-Service", "value": "{{internal_service}}" },
+          { "key": "X-Internal-Service-Secret", "value": "{{internal_secret}}" },
+          { "key": "X-Internal-User-Id", "value": "{{user_id}}" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"type\": \"task_completed\",\n  \"xp_reward\": 25\n}" },
+        "url": { "raw": "{{base_url}}/gamification/update-experience", "host": ["{{base_url}}"], "path": ["gamification", "update-experience"] }
+      },
+      "event": [
+        { "listen": "test", "script": { "type": "text/javascript", "exec": [
+          "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+          "pm.test('Experience response is valid', function () {",
+          "  const json = pm.response.json();",
+          "  pm.expect(json).to.have.property('pet');",
+          "  pm.expect(json).to.have.property('leveled_up');",
+          "  pm.expect(json).to.have.property('xp_added', 25);",
+          "});"
+        ] } }
+      ]
+    },
+    {
+      "name": "Record Activity",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "X-Internal-Service", "value": "{{internal_service}}" },
+          { "key": "X-Internal-Service-Secret", "value": "{{internal_secret}}" },
+          { "key": "X-Internal-User-Id", "value": "{{user_id}}" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"activity_id\": {{activity_id}}\n}" },
+        "url": { "raw": "{{base_url}}/statistics/record-activity", "host": ["{{base_url}}"], "path": ["statistics", "record-activity"] }
+      },
+      "event": [
+        { "listen": "test", "script": { "type": "text/javascript", "exec": [
+          "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+          "pm.test('Daily summary has completed count', function () {",
+          "  const json = pm.response.json();",
+          "  pm.expect(json).to.have.property('completed_count');",
+          "});"
+        ] } }
+      ]
+    },
+    {
+      "name": "Weekly Statistics",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "X-Internal-Service", "value": "{{internal_service}}" },
+          { "key": "X-Internal-Service-Secret", "value": "{{internal_secret}}" },
+          { "key": "X-Internal-User-Id", "value": "{{user_id}}" }
+        ],
+        "url": { "raw": "{{base_url}}/statistics/weekly", "host": ["{{base_url}}"], "path": ["statistics", "weekly"] }
+      },
+      "event": [
+        { "listen": "test", "script": { "type": "text/javascript", "exec": [
+          "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+          "pm.test('Weekly stats have required fields', function () {",
+          "  const json = pm.response.json();",
+          "  pm.expect(json).to.have.property('days');",
+          "  pm.expect(json).to.have.property('total_completed');",
+          "  pm.expect(json).to.have.property('current_streak');",
+          "});"
+        ] } }
+      ]
+    }
+  ]
+}
