@@ -22,20 +22,19 @@ class StatisticsController extends Controller
         return response()->json($stats);
     }
 
-    public function recordActivity(Request $request): JsonResponse
-    {
-        $userId = $this->authorizeRequest($request);
-        
-        $data = $request->validate([
-            'activity_id' => 'required|integer|min:1',
-            'user_id' => 'sometimes|integer|min:1',
-        ]);
+    public function recordActivity(Request $request)
+{
+    $validated = $request->validate([
+        'activity_id' => 'required|integer',
+    ]);
 
-        $summary = $this->statisticsService->recordActivityCompletion(
-            $userId,
-            $data['activity_id']
-        );
+    $userId = (int) $request->header('X-Internal-User-Id');
 
-        return response()->json($summary);
-    }
+    $summary = $this->statisticsService->recordActivityCompletion(
+        $userId,
+        $validated['activity_id']
+    );
+
+    return response()->json($summary);
+}
 }
