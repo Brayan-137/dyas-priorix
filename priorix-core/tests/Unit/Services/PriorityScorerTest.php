@@ -5,7 +5,7 @@ namespace Tests\Unit\Services;
 use App\Models\Activity;
 use App\Services\Planner\PriorityScorer;
 use Illuminate\Support\Collection;
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase;
 
 class PriorityScorerTest extends TestCase
 {

@@ -32,26 +32,30 @@ class SchedulingAlgorithm
             }
 
             foreach ($availableSlots as $index => $slot) {
+                while ($remainingMinutes > 0 && $sessionsLeft > 0) {
+                    if (!$this->slotFitsActivity($slot, $activity, $remainingMinutes)) {
+                        break;
+                    }
+
+                    $sessionDuration = $this->resolveSessionDuration($activity, $slot['duration'], $remainingMinutes);
+
+                    $plan['tasks'][] = [
+                        'activity_id' => $activity['id'],
+                        'scheduled_at' => $slot['start'],
+                        'duration' => $sessionDuration,
+                    ];
+
+                    $remainingMinutes -= $sessionDuration;
+                    $sessionsLeft--;
+
+                    $slot = $this->consumeSlot($slot, $sessionDuration);
+                }
+
                 if ($remainingMinutes <= 0 || $sessionsLeft <= 0) {
                     break;
                 }
 
-                if (!$this->slotFitsActivity($slot, $activity, $remainingMinutes)) {
-                    continue;
-                }
-
-                $sessionDuration = $this->resolveSessionDuration($activity, $slot['duration'], $remainingMinutes);
-
-                $plan['tasks'][] = [
-                    'activity_id' => $activity['id'],
-                    'scheduled_at' => $slot['start'],
-                    'duration' => $sessionDuration,
-                ];
-
-                $remainingMinutes -= $sessionDuration;
-                $sessionsLeft--;
-
-                $availableSlots[$index] = $this->consumeSlot($slot, $sessionDuration);
+                $availableSlots[$index] = $slot;
                 if ($availableSlots[$index]['duration'] <= 0) {
                     array_splice($availableSlots, $index, 1);
                 }

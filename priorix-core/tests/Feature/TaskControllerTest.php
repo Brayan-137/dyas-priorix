@@ -2,19 +2,62 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
-use App\Models\User;
 use App\Models\Activity;
 use App\Models\Task;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
+use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
+use Tests\TestCase;
 
 class TaskControllerTest extends TestCase
 {
     use RefreshDatabase;
 
-    /**
-     * Test getting tasks requires authentication.
-     */
+    private function createUser(array $overrides = []): User
+    {
+        return User::create(array_merge([
+            'name' => 'Test User',
+            'email' => 'user_' . uniqid() . '@example.com',
+            'password' => Hash::make('password'),
+        ], $overrides));
+    }
+
+    private function createActivity(User $user, array $overrides = []): Activity
+    {
+        return Activity::create(array_merge([
+            'user_id' => $user->id,
+            'title' => 'Actividad de prueba',
+            'type' => 'study',
+            'description' => 'Actividad generada para pruebas',
+            'estimated_minutes' => 60,
+            'max_session_minutes' => 30,
+            'max_sessions' => 2,
+            'priority' => 'media',
+            'label' => 'test',
+            'is_fixed' => false,
+            'repeats_weekly' => false,
+            'deadline' => now()->addDays(3),
+            'status' => 'pending',
+        ], $overrides));
+    }
+
+    private function authHeaders(User $user): array
+    {
+        return ['Authorization' => 'Bearer ' . JWTAuth::fromUser($user)];
+    }
+
+    private function createTask(Activity $activity, array $overrides = []): Task
+    {
+        return Task::create(array_merge([
+            'activity_id' => $activity->id,
+            'title' => 'Tarea de prueba',
+            'duration_minutes' => 30,
+            'scheduled_at' => now(),
+            'status' => 'pending',
+        ], $overrides));
+    }
+
     public function test_get_tasks_requires_authentication(): void
     {
         $response = $this->getJson('/api/tasks');
@@ -22,9 +65,6 @@ class TaskControllerTest extends TestCase
         $response->assertStatus(401);
     }
 
-    /**
-     * Test completing a task requires authentication.
-     */
     public function test_complete_task_requires_authentication(): void
     {
         $response = $this->postJson('/api/tasks/1/complete');
@@ -32,114 +72,88 @@ class TaskControllerTest extends TestCase
         $response->assertStatus(401);
     }
 
-    /**
-     * Test getting tasks for authenticated user.
-     */
     public function test_get_tasks_for_authenticated_user(): void
     {
-        $user = User::factory()->create();
-        $activity = Activity::factory()->create(['user_id' => $user->id]);
-        $task = Task::factory()->create(['activity_id' => $activity->id]);
+        $user = $this->createUser();
+        $activity = $this->createActivity($user);
+        $this->createTask($activity);
 
-        $response = $this->actingAs($user, 'api')
-                        ->getJson('/api/tasks');
+        $response = $this->withHeaders($this->authHeaders($user))
+            ->getJson('/api/tasks');
 
         $response->assertStatus(200)
-                ->assertJsonCount(1)
-                ->assertJsonStructure([
-                    '*' => [
-                        'id',
-                        'activity_id',
-                        'title',
-                        'duration_minutes',
-                        'scheduled_at',
-                        'status',
-                        'activity'
-                    ]
-                ]);
+            ->assertJsonCount(1)
+            ->assertJsonStructure([
+                '*' => [
+                    'id',
+                    'activity_id',
+                    'title',
+                    'duration_minutes',
+                    'scheduled_at',
+                    'status',
+                    'activity',
+                ],
+            ]);
     }
 
-    /**
-     * Test completing a task.
-     */
     public function test_complete_task(): void
     {
-        $user = User::factory()->create();
-        $activity = Activity::factory()->create(['user_id' => $user->id]);
-        $task = Task::factory()->create([
-            'activity_id' => $activity->id,
-            'status' => 'pending'
-        ]);
+        $user = $this->createUser();
+        $activity = $this->createActivity($user);
+        $task = $this->createTask($activity, ['status' => 'pending']);
 
-        $response = $this->actingAs($user, 'api')
-                        ->postJson("/api/tasks/{$task->id}/complete");
+        $response = $this->withHeaders($this->authHeaders($user))
+            ->postJson("/api/tasks/{$task->id}/complete");
 
         $response->assertStatus(200)
-                ->assertJsonStructure([
-                    'task' => [
-                        'id',
-                        'status'
-                    ],
-                    'gamification'
-                ]);
+            ->assertJsonStructure([
+                'task' => [
+                    'id',
+                    'status',
+                ],
+                'gamification',
+            ]);
 
         $this->assertDatabaseHas('tasks', [
             'id' => $task->id,
-            'status' => 'completed'
+            'status' => 'completed',
         ]);
     }
 
-    /**
-     * Test getting today pending tasks.
-     */
     public function test_get_today_pending_tasks(): void
     {
-        $user = User::factory()->create();
-        $activity = Activity::factory()->create(['user_id' => $user->id]);
+        $user = $this->createUser();
+        $activity = $this->createActivity($user);
 
-        // Create a pending task for today
-        $task = Task::factory()->create([
-            'activity_id' => $activity->id,
+        $this->createTask($activity, [
             'status' => 'pending',
-            'scheduled_at' => now()
+            'scheduled_at' => now(),
         ]);
 
-        // Create a completed task (should not appear)
-        Task::factory()->create([
-            'activity_id' => $activity->id,
+        $this->createTask($activity, [
             'status' => 'completed',
-            'scheduled_at' => now()
+            'scheduled_at' => now(),
         ]);
 
-        $response = $this->actingAs($user, 'api')
-                        ->getJson('/api/tasks/today/pending');
+        $response = $this->withHeaders($this->authHeaders($user))
+            ->getJson('/api/tasks/today/pending');
 
         $response->assertStatus(200)
-                ->assertJsonCount(1);
+            ->assertJsonCount(1);
     }
 
-    /**
-     * Test filtering tasks by status.
-     */
     public function test_filter_tasks_by_status(): void
     {
-        $user = User::factory()->create();
-        $activity = Activity::factory()->create(['user_id' => $user->id]);
+        $user = $this->createUser();
+        $activity = $this->createActivity($user);
 
-        Task::factory()->create([
-            'activity_id' => $activity->id,
-            'status' => 'pending'
-        ]);
+        $this->createTask($activity, ['status' => 'pending']);
+        $this->createTask($activity, ['status' => 'completed']);
 
-        Task::factory()->create([
-            'activity_id' => $activity->id,
-            'status' => 'completed'
-        ]);
-
-        $response = $this->actingAs($user, 'api')
-                        ->getJson('/api/tasks?status=pending');
+        $response = $this->withHeaders($this->authHeaders($user))
+            ->getJson('/api/tasks?status=pending');
 
         $response->assertStatus(200)
-                ->assertJsonCount(1);
+            ->assertJsonCount(1);
     }
 }

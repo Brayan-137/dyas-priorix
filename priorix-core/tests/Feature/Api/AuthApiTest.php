@@ -11,6 +11,15 @@ class AuthApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    private function createUser(array $overrides = []): User
+    {
+        return User::create(array_merge([
+            'name' => 'Test User',
+            'email' => 'user_' . uniqid() . '@example.com',
+            'password' => Hash::make('password'),
+        ], $overrides));
+    }
+
     public function test_user_can_register_from_api(): void
     {
         $response = $this->postJson('/api/auth/register', [
@@ -44,7 +53,7 @@ class AuthApiTest extends TestCase
 
     public function test_user_can_login_with_valid_credentials(): void
     {
-        User::factory()->create([
+        $this->createUser([
             'email' => 'student@example.com',
             'password' => Hash::make('secret123'),
         ]);
@@ -61,7 +70,7 @@ class AuthApiTest extends TestCase
 
     public function test_login_rejects_invalid_credentials(): void
     {
-        User::factory()->create([
+        $this->createUser([
             'email' => 'student@example.com',
             'password' => Hash::make('secret123'),
         ]);
