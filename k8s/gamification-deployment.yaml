@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: priorix-gamification
+  namespace: priorix
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: priorix-gamification
+  template:
+    metadata:
+      labels:
+        app: priorix-gamification
+    spec:
+      containers:
+        - name: priorix-gamification
+          image: ghcr.io/<your-github-owner>/priorix-gamification:latest
+          ports:
+            - containerPort: 80
+          envFrom:
+            - configMapRef:
+                name: priorix-gamification-config
+            - secretRef:
+                name: priorix-secrets
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: priorix-gamification
+  namespace: priorix
+spec:
+  selector:
+    app: priorix-gamification
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+      name: http

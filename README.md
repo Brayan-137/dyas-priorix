@@ -123,6 +123,25 @@ Se ha añadido un workflow de GitHub Actions en `.github/workflows/ci.yml` para 
 - Si vas a usar Kubernetes, crea manifiestos de despliegue basados en las imágenes generadas.
 - Conserva `docker-compose.yml` para desarrollo local y añade `docker-compose.override.yml` si necesitas entornos específicos de staging/producción.
 
+### Kubernetes
+
+Se ha añadido una carpeta `k8s/` con manifiestos de Kubernetes para orquestar el stack completo en un clúster.
+
+- `k8s/kustomization.yaml`: manifiesto principal que aplica todos los recursos.
+- `k8s/namespace.yaml`: espacio de nombres `priorix`.
+- `k8s/app-secrets.yaml`: secretos de aplicación para JWT, DB y Redis.
+- `k8s/core-configmap.yaml` y `k8s/gamification-configmap.yaml`: variables de configuración no secretas.
+- `k8s/nginx-configmap.yaml`: configuración de proxy para enrutar `core` y `gamification`.
+- `k8s/mysql-deployment.yaml`, `k8s/redis-deployment.yaml`, `k8s/core-deployment.yaml`, `k8s/gamification-deployment.yaml`, `k8s/nginx-deployment.yaml`: despliegues y servicios.
+
+Para desplegar en Kubernetes:
+
+```bash
+kubectl apply -k k8s/
+```
+
+Antes de aplicar los manifiestos, reemplaza los valores de imagen `ghcr.io/<your-github-owner>/...` por tu repositorio y etiqueta adecuados, y actualiza los secretos en `k8s/app-secrets.yaml`.
+
 ### Pipeline para GitLab
 
 Si deseas usar GitLab CI, he añadido un archivo `.gitlab-ci.yml` en la raíz del repositorio. Esta pipeline hace lo siguiente:

@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: priorix-nginx
+  namespace: priorix
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: priorix-nginx
+  template:
+    metadata:
+      labels:
+        app: priorix-nginx
+    spec:
+      containers:
+        - name: priorix-nginx
+          image: nginx:alpine
+          ports:
+            - containerPort: 80
+            - containerPort: 81
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/conf.d/default.conf
+              subPath: default.conf
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: priorix-nginx-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: priorix-nginx
+  namespace: priorix
+spec:
+  type: LoadBalancer
+  selector:
+    app: priorix-nginx
+  ports:
+    - name: core-http
+      port: 80
+      targetPort: 80
+    - name: gamification-http
+      port: 81
+      targetPort: 81

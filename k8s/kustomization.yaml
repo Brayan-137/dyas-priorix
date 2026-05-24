@@ -1,0 +1,11 @@
+resources:
+  - namespace.yaml
+  - app-secrets.yaml
+  - core-configmap.yaml
+  - gamification-configmap.yaml
+  - nginx-configmap.yaml
+  - mysql-deployment.yaml
+  - redis-deployment.yaml
+  - core-deployment.yaml
+  - gamification-deployment.yaml
+  - nginx-deployment.yaml
