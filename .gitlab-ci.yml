@@ -50,6 +50,7 @@ dependency-check-core:
     - wget https://github.com/jeremylong/DependencyCheck/releases/download/v9.0.9/dependency-check-9.0.9-release.zip
     - unzip dependency-check-9.0.9-release.zip
   script:
+    - mkdir -p dependency-report-core
     - ./dependency-check/bin/dependency-check.sh
       --project "priorix-core"
       --scan priorix-core/composer.lock
@@ -71,6 +72,7 @@ dependency-check-gamification:
     - wget https://github.com/jeremylong/DependencyCheck/releases/download/v9.0.9/dependency-check-9.0.9-release.zip
     - unzip dependency-check-9.0.9-release.zip
   script:
+    - mkdir -p dependency-report-gamification
     - ./dependency-check/bin/dependency-check.sh
       --project "priorix-gamification"
       --scan priorix-gamification/composer.lock
@@ -137,10 +139,9 @@ sonarcloud-core:
   image: sonarsource/sonar-scanner-cli
   variables:
     SONAR_HOST_URL: "https://sonarcloud.io"
-    SONAR_TOKEN: $SONAR_TOKEN
   script:
     - cd priorix-core
-    - sonar-scanner
+    - sonar-scanner -Dsonar.token=$SONAR_TOKEN
   only:
     - main
     - develop
@@ -152,11 +153,11 @@ sonarcloud-gamification:
   image: sonarsource/sonar-scanner-cli
   variables:
     SONAR_HOST_URL: "https://sonarcloud.io"
-    SONAR_TOKEN: $SONAR_TOKEN
   script:
     - cd priorix-gamification
-    - sonar-scanner
+    - sonar-scanner -Dsonar.token=$SONAR_TOKEN
   only:
     - main
     - develop
+    - brayan
   allow_failure: true
