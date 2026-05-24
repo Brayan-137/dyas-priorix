@@ -148,3 +148,35 @@ Si deseas usar GitLab CI, he añadido un archivo `.gitlab-ci.yml` en la raíz de
 
 - Si la pipeline falla en la parte de `composer install`, revisa que el job esté usando PHP 8.3 y tenga permisos de red.
 - Si la pipeline falla al hacer `php artisan migrate`, revisa que el servicio `mysql` esté listo y que `.env` tenga `DB_HOST=mysql`.
+
+### Despliegue CD con Docker Compose
+
+Se ha añadido un archivo `docker-compose.deploy.yml` para ejecutar el stack en un servidor de staging o producción con imágenes publicadas en GitHub Container Registry.
+
+1. Crea un fichero `.env.deploy` a partir de `.env.deploy.example` y actualiza los valores:
+   - `GHCR_OWNER`: tu usuario/repo owner en GitHub
+   - `CORE_IMAGE_TAG`, `GAMIFICATION_IMAGE_TAG`: etiquetas que quieres desplegar
+   - `APP_ENV`, `APP_DEBUG`, `APP_URL`
+   - `JWT_SECRET`, `INTERNAL_SERVICE_SECRET`, credenciales de MySQL y Redis
+
+2. En el servidor remoto, asegúrate de tener `docker` y `docker compose` instalados, y de haber iniciado sesión en GitHub Container Registry:
+   - `echo "$GHCR_TOKEN" | docker login ghcr.io -u $GHCR_USER --password-stdin`
+
+3. Despliega con:
+   - `docker compose --env-file .env.deploy -f docker-compose.deploy.yml up -d --remove-orphans`
+
+4. Para que la acción de GitHub lance el despliegue automático, configura los secretos del repositorio:
+   - `STAGING_SSH_HOST`
+   - `STAGING_SSH_USER`
+   - `STAGING_SSH_KEY`
+   - `STAGING_SSH_PORT`
+   - `STAGING_DEPLOY_PATH`
+   - `PRODUCTION_SSH_HOST`
+   - `PRODUCTION_SSH_USER`
+   - `PRODUCTION_SSH_KEY`
+   - `PRODUCTION_SSH_PORT`
+   - `PRODUCTION_DEPLOY_PATH`
+
+5. El job `deploy-staging` se activa en la rama `main` y `deploy-production` en la rama `production`.
+
+> Nota: Para simplificar el despliegue, estos jobs usan `docker compose pull` y `docker compose up -d --remove-orphans --build` en el servidor remoto.
