@@ -11,7 +11,9 @@ semgrep-sast:
   stage: sast
   image: semgrep/semgrep
   script:
-    - semgrep --config=p/laravel --config=p/php --config=p/owasp-top-ten
+    - semgrep --config=p/php
+      --config=p/owasp-top-ten
+      --config=p/security-audit
       priorix-core/app priorix-gamification/app
       --json --output=semgrep-report.json
   artifacts:
@@ -40,9 +42,9 @@ gitleaks-secrets:
 
 # ─── DEPENDENCY SCAN ────────────────────────────────────────────────────────
 
-ddependency-check-core:
+dependency-check-core:
   stage: dependency-scan
-  image: php:8.2-cli
+  image: maven:3.9-eclipse-temurin-17
   before_script:
     - apt-get update && apt-get install -y wget unzip
     - wget https://github.com/jeremylong/DependencyCheck/releases/download/v9.0.9/dependency-check-9.0.9-release.zip
@@ -63,7 +65,7 @@ ddependency-check-core:
 
 dependency-check-gamification:
   stage: dependency-scan
-  image: php:8.2-cli
+  image: maven:3.9-eclipse-temurin-17
   before_script:
     - apt-get update && apt-get install -y wget unzip
     - wget https://github.com/jeremylong/DependencyCheck/releases/download/v9.0.9/dependency-check-9.0.9-release.zip
