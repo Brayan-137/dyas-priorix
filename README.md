@@ -99,3 +99,52 @@ sequenceDiagram
 | **Observabilidad** | Prometheus, Grafana, Jaeger | Monitoreo y trazabilidad                  |
 
 ---
+
+## 10. CI/CD
+
+Se ha añadido un workflow de GitHub Actions en `.github/workflows/ci.yml` para automatizar las siguientes tareas:
+
+- ejecutar pruebas unitarias y de integración de `priorix-core`
+- ejecutar pruebas unitarias y de integración de `priorix-gamification`
+- ejecutar pruebas del frontend en `client`
+- construir las imágenes Docker de los dos servicios PHP
+
+### Cómo funciona
+
+1. `core-tests` y `gamification-tests` levantan servicios de MySQL y Redis en GitHub Actions.
+2. Generan el archivo `.env` temporal a partir de `.env.example` y actualizan los hosts de base de datos para el entorno de CI.
+3. Ejecutan migraciones y luego `composer test`.
+4. `frontend-tests` instala dependencias y ejecuta `npm run test` en el directorio `client`.
+5. `docker-build` construye las imágenes `priorix-core:ci` y `priorix-gamification:ci`.
+
+### Recomendaciones adicionales
+
+- Para despliegue en producción, puedes ampliar el workflow con `docker push` a GitHub Container Registry u otro registro.
+- Si vas a usar Kubernetes, crea manifiestos de despliegue basados en las imágenes generadas.
+- Conserva `docker-compose.yml` para desarrollo local y añade `docker-compose.override.yml` si necesitas entornos específicos de staging/producción.
+
+### Pipeline para GitLab
+
+Si deseas usar GitLab CI, he añadido un archivo `.gitlab-ci.yml` en la raíz del repositorio. Esta pipeline hace lo siguiente:
+
+1. `core-tests`: instala dependencias de `priorix-core`, genera `.env`, corre migraciones y ejecuta `composer test`.
+2. `gamification-tests`: instala dependencias de `priorix-gamification`, genera `.env`, corre migraciones y ejecuta `composer test`.
+3. `frontend-tests`: instala dependencias de `client` y ejecuta `npm run test`.
+4. `docker-build`: construye las imágenes Docker de `priorix-core` y `priorix-gamification`.
+
+### Pasos para activar GitLab CI
+
+1. Comprueba que el remoto `origin` apunta a GitLab:
+   - `git remote -v`
+2. Añade el archivo `.gitlab-ci.yml` al repositorio:
+   - `git add .gitlab-ci.yml`
+3. Haz commit y push a la rama principal en GitLab:
+   - `git commit -m "Agregar pipeline GitLab CI"`
+   - `git push origin main`
+4. En GitLab, ve al proyecto y abre la sección `CI / CD > Pipelines`.
+5. Verifica que la pipeline se ejecute y revisa los logs de cada job.
+
+### Consejos rápidos
+
+- Si la pipeline falla en la parte de `composer install`, revisa que el job esté usando PHP 8.3 y tenga permisos de red.
+- Si la pipeline falla al hacer `php artisan migrate`, revisa que el servicio `mysql` esté listo y que `.env` tenga `DB_HOST=mysql`.

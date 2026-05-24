@@ -1,0 +1,207 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+jobs:
+  core-tests:
+    name: Pruebas Priorix Core
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: priorix_core
+          MYSQL_USER: priorix
+          MYSQL_PASSWORD: secret
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+      redis:
+        image: redis:alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar PHP
+        uses: shivammathur/setup-php@v4
+        with:
+          php-version: 8.3
+          extensions: mbstring, bcmath, curl, dom, gd, mysql, zip, redis
+          tools: composer
+
+      - name: Instalar dependencias de Composer
+        working-directory: priorix-core
+        run: |
+          composer install --no-progress --no-suggest --prefer-dist --optimize-autoloader
+
+      - name: Crear .env de prueba
+        working-directory: priorix-core
+        run: |
+          cp .env.example .env
+          php artisan key:generate --ansi
+          php -r "file_put_contents('.env', str_replace(['DB_HOST=mysql-core', 'DB_DATABASE=priorix_core', 'DB_USERNAME=priorix', 'DB_PASSWORD=secret', 'REDIS_HOST=redis'], ['DB_HOST=mysql', 'DB_DATABASE=priorix_core', 'DB_USERNAME=priorix', 'DB_PASSWORD=secret', 'REDIS_HOST=redis'], file_get_contents('.env')));"
+
+      - name: Esperar servicios
+        run: |
+          for i in {1..30}; do
+            if php -r "try { new PDO('mysql:host=mysql;dbname=priorix_core', 'priorix', 'secret'); exit(0);} catch (Exception $e) { exit(1);}"
+            then
+              echo 'MySQL disponible'
+              break
+            fi
+            sleep 2
+          done
+          if ! php -r "try { new PDO('mysql:host=mysql;dbname=priorix_core', 'priorix', 'secret'); exit(0);} catch (Exception $e) { exit(1);}"
+          then
+            echo 'Error: MySQL no estuvo disponible en el tiempo esperado.'
+            exit 1
+          fi
+        working-directory: priorix-core
+
+      - name: Ejecutar migraciones
+        working-directory: priorix-core
+        run: php artisan migrate --force
+
+      - name: Ejecutar tests
+        working-directory: priorix-core
+        run: composer test
+
+  gamification-tests:
+    name: Pruebas Priorix Gamification
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: priorix_gamification
+          MYSQL_USER: priorix
+          MYSQL_PASSWORD: secret
+        ports:
+          - 3307:3306
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+      redis:
+        image: redis:alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar PHP
+        uses: shivammathur/setup-php@v4
+        with:
+          php-version: 8.3
+          extensions: mbstring, bcmath, curl, dom, gd, mysql, zip, redis
+          tools: composer
+
+      - name: Instalar dependencias de Composer
+        working-directory: priorix-gamification
+        run: |
+          composer install --no-progress --no-suggest --prefer-dist --optimize-autoloader
+
+      - name: Crear .env de prueba
+        working-directory: priorix-gamification
+        run: |
+          cp .env.example .env
+          php artisan key:generate --ansi
+          php -r "file_put_contents('.env', str_replace(['DB_HOST=mysql-gamification', 'DB_DATABASE=priorix_gamification', 'DB_USERNAME=priorix', 'DB_PASSWORD=secret', 'REDIS_HOST=redis'], ['DB_HOST=mysql', 'DB_DATABASE=priorix_gamification', 'DB_USERNAME=priorix', 'DB_PASSWORD=secret', 'REDIS_HOST=redis'], file_get_contents('.env')));"
+
+      - name: Esperar servicios
+        run: |
+          for i in {1..30}; do
+            if php -r "try { new PDO('mysql:host=mysql;dbname=priorix_gamification', 'priorix', 'secret'); exit(0);} catch (Exception $e) { exit(1);}"
+            then
+              echo 'MySQL disponible'
+              break
+            fi
+            sleep 2
+          done
+          if ! php -r "try { new PDO('mysql:host=mysql;dbname=priorix_gamification', 'priorix', 'secret'); exit(0);} catch (Exception $e) { exit(1);}"
+          then
+            echo 'Error: MySQL no estuvo disponible en el tiempo esperado.'
+            exit 1
+          fi
+        working-directory: priorix-gamification
+
+      - name: Ejecutar migraciones
+        working-directory: priorix-gamification
+        run: php artisan migrate --force
+
+      - name: Ejecutar tests
+        working-directory: priorix-gamification
+        run: composer test
+
+  frontend-tests:
+    name: Pruebas Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Instalar dependencias frontend
+        working-directory: client
+        run: npm install
+
+      - name: Ejecutar tests frontend
+        working-directory: client
+        run: npm run test
+
+  docker-build:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: [core-tests, gamification-tests]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Priorix Core image
+        uses: docker/build-push-action@v5
+        with:
+          context: priorix-core
+          file: priorix-core/Dockerfile
+          push: false
+          tags: priorix-core:ci
+
+      - name: Build Priorix Gamification image
+        uses: docker/build-push-action@v5
+        with:
+          context: priorix-gamification
+          file: priorix-gamification/Dockerfile
+          push: false
+          tags: priorix-gamification:ci
