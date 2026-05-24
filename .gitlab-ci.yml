@@ -58,6 +58,7 @@ dependency-check-core:
       --out dependency-report-core
       --disableAssembly
       --disableNodeJS
+      --nvdApiKey $NVD_API_KEY
   artifacts:
     when: always
     paths:
@@ -80,6 +81,7 @@ dependency-check-gamification:
       --out dependency-report-gamification
       --disableAssembly
       --disableNodeJS
+      --nvdApiKey $NVD_API_KEY
   artifacts:
     when: always
     paths:
