@@ -42,50 +42,38 @@ gitleaks-secrets:
 
 # ─── DEPENDENCY SCAN ────────────────────────────────────────────────────────
 
-dependency-check-core:
+snyk-core:
   stage: dependency-scan
-  image: maven:3.9-eclipse-temurin-17
+  image: node:18
   before_script:
-    - apt-get update && apt-get install -y wget unzip
-    - wget https://github.com/jeremylong/DependencyCheck/releases/download/v9.0.9/dependency-check-9.0.9-release.zip
-    - unzip dependency-check-9.0.9-release.zip
+    - npm install -g snyk
   script:
-    - mkdir -p dependency-report-core
-    - ./dependency-check/bin/dependency-check.sh
-      --project "priorix-core"
-      --scan priorix-core/composer.lock
-      --format HTML --format JSON
-      --out dependency-report-core
-      --disableAssembly
-      --disableNodeJS
-      --nvdApiKey $NVD_API_KEY
+    - cd priorix-core
+    - snyk auth $SNYK_TOKEN
+    - snyk test --file=composer.lock
+      --package-manager=composer
+      --json > ../dependency-report-core.json || true
   artifacts:
     when: always
     paths:
-      - dependency-report-core/
+      - dependency-report-core.json
   allow_failure: true
 
-dependency-check-gamification:
+snyk-gamification:
   stage: dependency-scan
-  image: maven:3.9-eclipse-temurin-17
+  image: node:18
   before_script:
-    - apt-get update && apt-get install -y wget unzip
-    - wget https://github.com/jeremylong/DependencyCheck/releases/download/v9.0.9/dependency-check-9.0.9-release.zip
-    - unzip dependency-check-9.0.9-release.zip
+    - npm install -g snyk
   script:
-    - mkdir -p dependency-report-gamification
-    - ./dependency-check/bin/dependency-check.sh
-      --project "priorix-gamification"
-      --scan priorix-gamification/composer.lock
-      --format HTML --format JSON
-      --out dependency-report-gamification
-      --disableAssembly
-      --disableNodeJS
-      --nvdApiKey $NVD_API_KEY
+    - cd priorix-gamification
+    - snyk auth $SNYK_TOKEN
+    - snyk test --file=composer.lock
+      --package-manager=composer
+      --json > ../dependency-report-gamification.json || true
   artifacts:
     when: always
     paths:
-      - dependency-report-gamification/
+      - dependency-report-gamification.json
   allow_failure: true
 
 # ─── CONTAINER SCAN ─────────────────────────────────────────────────────────
