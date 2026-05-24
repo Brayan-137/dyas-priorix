@@ -12,8 +12,8 @@ semgrep-sast:
   image: semgrep/semgrep
   script:
     - semgrep --config=p/laravel --config=p/php --config=p/owasp-top-ten
-        priorix-core/app priorix-gamification/app
-        --json --output=semgrep-report.json
+      priorix-core/app priorix-gamification/app
+      --json --output=semgrep-report.json
   artifacts:
     when: always
     paths:
@@ -31,7 +31,7 @@ gitleaks-secrets:
     entrypoint: [""]
   script:
     - gitleaks detect --source=. --report-format=json
-        --report-path=gitleaks-report.json --verbose
+      --report-path=gitleaks-report.json --verbose
   artifacts:
     when: always
     paths:
@@ -40,18 +40,21 @@ gitleaks-secrets:
 
 # ─── DEPENDENCY SCAN ────────────────────────────────────────────────────────
 
-dependency-check-core:
+ddependency-check-core:
   stage: dependency-scan
-  image:
-    name: owasp/dependency-check
-    entrypoint: [""]
+  image: php:8.2-cli
+  before_script:
+    - apt-get update && apt-get install -y wget unzip
+    - wget https://github.com/jeremylong/DependencyCheck/releases/download/v9.0.9/dependency-check-9.0.9-release.zip
+    - unzip dependency-check-9.0.9-release.zip
   script:
-    - /usr/share/dependency-check/bin/dependency-check.sh
-        --project "priorix-core"
-        --scan priorix-core/composer.lock
-        --format HTML --format JSON
-        --out dependency-report-core
-        --noupdate
+    - ./dependency-check/bin/dependency-check.sh
+      --project "priorix-core"
+      --scan priorix-core/composer.lock
+      --format HTML --format JSON
+      --out dependency-report-core
+      --disableAssembly
+      --disableNodeJS
   artifacts:
     when: always
     paths:
@@ -60,16 +63,19 @@ dependency-check-core:
 
 dependency-check-gamification:
   stage: dependency-scan
-  image:
-    name: owasp/dependency-check
-    entrypoint: [""]
+  image: php:8.2-cli
+  before_script:
+    - apt-get update && apt-get install -y wget unzip
+    - wget https://github.com/jeremylong/DependencyCheck/releases/download/v9.0.9/dependency-check-9.0.9-release.zip
+    - unzip dependency-check-9.0.9-release.zip
   script:
-    - /usr/share/dependency-check/bin/dependency-check.sh
-        --project "priorix-gamification"
-        --scan priorix-gamification/composer.lock
-        --format HTML --format JSON
-        --out dependency-report-gamification
-        --noupdate
+    - ./dependency-check/bin/dependency-check.sh
+      --project "priorix-gamification"
+      --scan priorix-gamification/composer.lock
+      --format HTML --format JSON
+      --out dependency-report-gamification
+      --disableAssembly
+      --disableNodeJS
   artifacts:
     when: always
     paths:
@@ -91,9 +97,9 @@ trivy-core:
   script:
     - docker build -t priorix-core:scan priorix-core/
     - trivy image --exit-code 0 --format json
-        --output trivy-report-core.json
-        --severity HIGH,CRITICAL
-        priorix-core:scan
+      --output trivy-report-core.json
+      --severity HIGH,CRITICAL
+      priorix-core:scan
   artifacts:
     when: always
     paths:
@@ -113,9 +119,9 @@ trivy-gamification:
   script:
     - docker build -t priorix-gamification:scan priorix-gamification/
     - trivy image --exit-code 0 --format json
-        --output trivy-report-gamification.json
-        --severity HIGH,CRITICAL
-        priorix-gamification:scan
+      --output trivy-report-gamification.json
+      --severity HIGH,CRITICAL
+      priorix-gamification:scan
   artifacts:
     when: always
     paths:
@@ -136,6 +142,7 @@ sonarcloud-core:
   only:
     - main
     - develop
+    - brayan
   allow_failure: true
 
 sonarcloud-gamification:
