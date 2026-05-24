@@ -1,0 +1,93 @@
+stages:
+  - test
+  - build
+
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - when: never
+
+variables:
+  MYSQL_ROOT_PASSWORD: root
+  MYSQL_USER: priorix
+  MYSQL_PASSWORD: secret
+  MYSQL_DATABASE: priorix_core
+  REDIS_HOST: redis
+  REDIS_PORT: 6379
+  COMPOSER_ALLOW_SUPERUSER: 1
+
+.default_php: &default_php
+  image: php:8.3
+  services:
+    - name: mysql:8.0
+      alias: mysql
+    - name: redis:alpine
+      alias: redis
+  before_script:
+    - apt-get update -y
+    - apt-get install -y unzip git curl libzip-dev libpng-dev libonig-dev libxml2-dev zip
+    - docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip
+    - pecl install redis
+    - docker-php-ext-enable redis
+    - curl -sS https://getcomposer.org/installer | php
+    - mv composer.phar /usr/local/bin/composer
+    - composer --version
+  cache:
+    key: "${CI_PROJECT_NAME}-${CI_JOB_NAME}"
+    paths:
+      - vendor/
+
+core-tests:
+  <<: *default_php
+  stage: test
+  variables:
+    MYSQL_DATABASE: priorix_core
+  script:
+    - cd priorix-core
+    - composer install --no-interaction --prefer-dist --optimize-autoloader
+    - cp .env.example .env
+    - php artisan key:generate --ansi
+    - php -r "file_put_contents('.env', str_replace(['DB_HOST=mysql-core','DB_DATABASE=priorix_core','DB_USERNAME=priorix','DB_PASSWORD=secret','REDIS_HOST=redis'], ['DB_HOST=mysql','DB_DATABASE=priorix_core','DB_USERNAME=priorix','DB_PASSWORD=secret','REDIS_HOST=redis'], file_get_contents('.env')));"
+    - php artisan migrate --force
+    - composer test
+
+gamification-tests:
+  <<: *default_php
+  stage: test
+  variables:
+    MYSQL_DATABASE: priorix_gamification
+  script:
+    - cd priorix-gamification
+    - composer install --no-interaction --prefer-dist --optimize-autoloader
+    - cp .env.example .env
+    - php artisan key:generate --ansi
+    - php -r "file_put_contents('.env', str_replace(['DB_HOST=mysql-gamification','DB_DATABASE=priorix_gamification','DB_USERNAME=priorix','DB_PASSWORD=secret','REDIS_HOST=redis'], ['DB_HOST=mysql','DB_DATABASE=priorix_gamification','DB_USERNAME=priorix','DB_PASSWORD=secret','REDIS_HOST=redis'], file_get_contents('.env')));"
+    - php artisan migrate --force
+    - composer test
+
+frontend-tests:
+  image: node:20
+  stage: test
+  cache:
+    key: "${CI_PROJECT_NAME}-${CI_JOB_NAME}"
+    paths:
+      - client/node_modules/
+  script:
+    - cd client
+    - npm install
+    - npm run test
+
+docker-build:
+  image: docker:24.0.5
+  stage: build
+  services:
+    - name: docker:24.0.5-dind
+      alias: docker
+  variables:
+    DOCKER_HOST: tcp://docker:2375/
+    DOCKER_TLS_CERTDIR: ""
+  script:
+    - docker info
+    - docker build -t priorix-core:ci priorix-core
+    - docker build -t priorix-gamification:ci priorix-gamification
