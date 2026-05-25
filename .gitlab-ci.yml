@@ -317,6 +317,8 @@ test-core:
   variables:
     PHP_EXTENSION_PCOV: 1
     REDIS_HOST: redis
+    DB_CONNECTION: sqlite
+    DB_DATABASE: ":memory:"
   before_script:
     - cd priorix-core
     - composer install --no-interaction --prefer-dist
@@ -336,6 +338,8 @@ test-gamification:
   image: thecodingmachine/php:8.3-v4-cli   # ← 8.2 → 8.3
   variables:
     PHP_EXTENSION_PCOV: 1
+    DB_CONNECTION: sqlite
+    DB_DATABASE: ":memory:"
   before_script:
     - cd priorix-gamification
     - composer install --no-interaction --prefer-dist
