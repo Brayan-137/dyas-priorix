@@ -93,4 +93,16 @@ class StatisticsApiTest extends TestCase
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['activity_id']);
     }
+
+    public function test_statistics_endpoints_require_internal_auth(): void
+    {
+        $this->getJson('/api/statistics/weekly')->assertUnauthorized();
+
+        $this->withHeaders([
+            'X-Internal-Service' => 'priorix-core',
+            'X-Internal-Service-Secret' => 'invalid',
+            'X-Internal-User-Id' => '5',
+        ])->getJson('/api/statistics/weekly')
+            ->assertForbidden();
+    }
 }

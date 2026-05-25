@@ -83,4 +83,28 @@ class GamificationApiTest extends TestCase
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['type', 'xp_reward']);
     }
+
+    public function test_internal_auth_rejects_invalid_secret(): void
+    {
+        $response = $this->withHeaders([
+            'X-Internal-Service' => 'priorix-core',
+            'X-Internal-Service-Secret' => 'wrong-secret',
+            'X-Internal-User-Id' => '1',
+        ])->getJson('/api/gamification/pet');
+
+        $response->assertForbidden()
+            ->assertJson(['error' => 'Acceso interno no autorizado']);
+    }
+
+    public function test_internal_auth_rejects_missing_user_id(): void
+    {
+        $response = $this->withHeaders([
+            'X-Internal-Service' => 'priorix-core',
+            'X-Internal-Service-Secret' => 'test-internal-secret',
+            'X-Internal-User-Id' => '0',
+        ])->getJson('/api/gamification/pet');
+
+        $response->assertBadRequest()
+            ->assertJson(['error' => 'X-Internal-User-Id inválido o ausente']);
+    }
 }

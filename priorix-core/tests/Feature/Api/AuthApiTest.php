@@ -5,6 +5,7 @@ namespace Tests\Feature\Api;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
 use Tests\TestCase;
 
 class AuthApiTest extends TestCase
@@ -18,6 +19,11 @@ class AuthApiTest extends TestCase
             'email' => 'user_' . uniqid() . '@example.com',
             'password' => Hash::make('password'),
         ], $overrides));
+    }
+
+    private function authHeaders(User $user): array
+    {
+        return ['Authorization' => 'Bearer ' . JWTAuth::fromUser($user)];
     }
 
     public function test_user_can_register_from_api(): void
@@ -82,5 +88,33 @@ class AuthApiTest extends TestCase
 
         $response->assertUnauthorized()
             ->assertJson(['error' => 'Credenciales inválidas']);
+    }
+
+    public function test_authenticated_user_can_fetch_profile(): void
+    {
+        $user = $this->createUser(['email' => 'profile@example.com']);
+
+        $response = $this->withHeaders($this->authHeaders($user))
+            ->getJson('/api/auth/me');
+
+        $response->assertOk()
+            ->assertJsonPath('email', 'profile@example.com')
+            ->assertJsonPath('id', $user->id);
+    }
+
+    public function test_user_can_logout(): void
+    {
+        $user = $this->createUser();
+
+        $response = $this->withHeaders($this->authHeaders($user))
+            ->postJson('/api/auth/logout');
+
+        $response->assertOk()
+            ->assertJson(['message' => 'Sesión cerrada']);
+    }
+
+    public function test_me_requires_authentication(): void
+    {
+        $this->getJson('/api/auth/me')->assertUnauthorized();
     }
 }

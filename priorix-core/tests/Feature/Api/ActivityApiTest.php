@@ -6,6 +6,7 @@ use App\Models\Activity;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
 use Tests\TestCase;
 
@@ -98,5 +99,49 @@ class ActivityApiTest extends TestCase
             ->assertJsonCount(1)
             ->assertJsonFragment(['title' => 'Visible'])
             ->assertJsonMissing(['title' => 'Hidden']);
+    }
+
+    public function test_authenticated_user_can_show_update_and_delete_activity(): void
+    {
+        $user = $this->createUser();
+        $activity = $this->createActivity($user, ['title' => 'Original']);
+
+        $this->withHeaders($this->authHeaders($user))
+            ->getJson("/api/activities/{$activity->id}")
+            ->assertOk()
+            ->assertJsonPath('title', 'Original');
+
+        $this->withHeaders($this->authHeaders($user))
+            ->putJson("/api/activities/{$activity->id}", ['title' => 'Actualizada'])
+            ->assertOk()
+            ->assertJsonPath('title', 'Actualizada');
+
+        $this->withHeaders($this->authHeaders($user))
+            ->deleteJson("/api/activities/{$activity->id}")
+            ->assertNoContent();
+
+        $this->assertDatabaseMissing('activities', ['id' => $activity->id]);
+    }
+
+    public function test_authenticated_user_can_complete_activity(): void
+    {
+        Http::fake([
+            '*' => Http::response(['ok' => true], 200),
+        ]);
+
+        $user = $this->createUser();
+        $activity = $this->createActivity($user, ['priority' => 'alta']);
+
+        $response = $this->withHeaders($this->authHeaders($user))
+            ->postJson("/api/activities/{$activity->id}/complete");
+
+        $response->assertOk()
+            ->assertJsonStructure(['activity', 'gamification', 'statistics'])
+            ->assertJsonPath('activity.status', 'completed');
+
+        $this->assertDatabaseHas('activities', [
+            'id' => $activity->id,
+            'status' => 'completed',
+        ]);
     }
 }
