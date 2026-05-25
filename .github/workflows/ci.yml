@@ -200,8 +200,9 @@ jobs:
         run: |
           OVERLAY="kubernetes/overlays/staging"
           if [ -z "$KUBE_CONFIG" ]; then
-            echo "KUBE_CONFIG no configurado: validando manifiestos con dry-run."
-            kubectl apply --dry-run=client -k "$OVERLAY"
+            echo "KUBE_CONFIG no configurado: validando manifiestos sin clúster."
+            kubectl kustomize "$OVERLAY" > /dev/null
+            kubectl apply --dry-run=client --validate=false -k "$OVERLAY"
             exit 0
           fi
           mkdir -p ~/.kube
