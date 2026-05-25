@@ -314,6 +314,7 @@ test-core:
       alias: redis
   variables:
     PHP_EXTENSION_PCOV: 1
+    PHP_EXTENSIONS: pdo_sqlite sqlite3 gd zip bcmath
     REDIS_HOST: redis
     DB_CONNECTION: sqlite
     DB_DATABASE: ":memory:"
@@ -323,6 +324,7 @@ test-core:
     - cp .env.example .env
     - php artisan key:generate --ansi
     - php -r "file_put_contents('.env', preg_replace('/^REDIS_HOST=.*/m', 'REDIS_HOST=redis', file_get_contents('.env')));"
+    - php artisan config:clear
   script:
     - php -d pcov.enabled=1 vendor/bin/phpunit --coverage-clover coverage.xml
   artifacts:
@@ -336,6 +338,7 @@ test-gamification:
   image: thecodingmachine/php:8.3-v4-cli
   variables:
     PHP_EXTENSION_PCOV: 1
+    PHP_EXTENSIONS: pdo_sqlite sqlite3 gd zip bcmath
     DB_CONNECTION: sqlite
     DB_DATABASE: ":memory:"
   before_script:
@@ -343,6 +346,7 @@ test-gamification:
     - composer install --no-interaction --prefer-dist
     - cp .env.example .env
     - php artisan key:generate --ansi
+    - php artisan config:clear
   script:
     - php -d pcov.enabled=1 vendor/bin/phpunit --coverage-clover coverage.xml
   artifacts:
