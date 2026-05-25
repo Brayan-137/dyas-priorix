@@ -1,6 +1,7 @@
 <?php
 namespace App\Infrastructure\Observability;
 
+use OpenTelemetry\API\Globals;
 use OpenTelemetry\API\Trace\SpanInterface;
 use OpenTelemetry\API\Trace\TracerInterface;
 use OpenTelemetry\SDK\Trace\TracerProvider;
@@ -17,6 +18,12 @@ class TracingService
 
     public function __construct()
     {
+        if (app()->environment('testing') || !config('tracing.enabled', true)) {
+            $this->tracer = Globals::tracerProvider()->getTracer('priorix-core');
+
+            return;
+        }
+
         $transport = (new OtlpHttpTransportFactory())->create(
             config('tracing.jaeger_endpoint', 'http://jaeger:4318/v1/traces'),
             'application/x-protobuf'

@@ -23,6 +23,7 @@ class StatisticsControllerValidationMockeryTest extends TestCase
         $request->headers->set('X-Internal-Service', 'priorix-core');
         $request->headers->set('X-Internal-Service-Secret', 'test-internal-secret');
         $request->headers->set('X-Internal-User-Id', (string) $userId);
+        $request->attributes->set('resolved_user_id', $userId);
 
         return $request;
     }
