@@ -5,6 +5,13 @@ stages:
   - test
   - build
   - deploy
+  # Etapas de seguridad (SAST, secrets, dependency scan, container scan) y calidad (SonarCloud)
+  - sast
+  - secrets
+  - dependency-scan
+  - container-scan
+  - coverage
+  - quality
 
 workflow:
   rules:
@@ -179,3 +186,199 @@ deploy-production:
         kubectl rollout status deployment/priorix-core -n priorix --timeout=180s
         kubectl rollout status deployment/priorix-gamification -n priorix --timeout=180s
       fi
+
+# ─── SAST ───────────────────────────────────────────────────────────────────
+
+semgrep-sast:
+  stage: sast
+  image: semgrep/semgrep
+  script:
+    - semgrep --config=p/php
+      --config=p/owasp-top-ten
+      --config=p/security-audit
+      priorix-core/app priorix-gamification/app
+      --json --output=semgrep-report.json
+  artifacts:
+    when: always
+    paths:
+      - semgrep-report.json
+    reports:
+      sast: semgrep-report.json
+  allow_failure: true
+
+# ─── SECRETS ────────────────────────────────────────────────────────────────
+
+gitleaks-secrets:
+  stage: secrets
+  image:
+    name: zricethezav/gitleaks
+    entrypoint: [""]
+  script:
+    - gitleaks detect --source=. --report-format=json
+      --report-path=gitleaks-report.json --verbose
+  artifacts:
+    when: always
+    paths:
+      - gitleaks-report.json
+  allow_failure: true
+
+# ─── DEPENDENCY SCAN ────────────────────────────────────────────────────────
+
+snyk-core:
+  stage: dependency-scan
+  image: node:18
+  before_script:
+    - npm install -g snyk
+  script:
+    - cd priorix-core
+    - snyk auth $SNYK_TOKEN
+    - snyk test --file=composer.lock
+      --package-manager=composer
+      --json > ../dependency-report-core.json || true
+  artifacts:
+    when: always
+    paths:
+      - dependency-report-core.json
+  allow_failure: true
+
+snyk-gamification:
+  stage: dependency-scan
+  image: node:18
+  before_script:
+    - npm install -g snyk
+  script:
+    - cd priorix-gamification
+    - snyk auth $SNYK_TOKEN
+    - snyk test --file=composer.lock
+      --package-manager=composer
+      --json > ../dependency-report-gamification.json || true
+  artifacts:
+    when: always
+    paths:
+      - dependency-report-gamification.json
+  allow_failure: true
+
+# ─── CONTAINER SCAN ─────────────────────────────────────────────────────────
+
+trivy-core:
+  stage: container-scan
+  image: docker:24
+  services:
+    - docker:24-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  before_script:
+    - apk add --no-cache curl
+    - curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+  script:
+    - docker build -t priorix-core:scan priorix-core/
+    - trivy image --exit-code 0 --format json
+      --output trivy-report-core.json
+      --severity HIGH,CRITICAL
+      priorix-core:scan
+  artifacts:
+    when: always
+    paths:
+      - trivy-report-core.json
+  allow_failure: true
+
+trivy-gamification:
+  stage: container-scan
+  image: docker:24
+  services:
+    - docker:24-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  before_script:
+    - apk add --no-cache curl
+    - curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+  script:
+    - docker build -t priorix-gamification:scan priorix-gamification/
+    - trivy image --exit-code 0 --format json
+      --output trivy-report-gamification.json
+      --severity HIGH,CRITICAL
+      priorix-gamification:scan
+  artifacts:
+    when: always
+    paths:
+      - trivy-report-gamification.json
+  allow_failure: true
+
+# ─── COVERAGE ────────────────────────────────────────────────────────────────
+
+test-core:
+  stage: coverage
+  image: thecodingmachine/php:8.3-v4-cli
+  services:
+    - name: redis:alpine
+      alias: redis
+  variables:
+    PHP_EXTENSION_PCOV: 1
+    PHP_EXTENSIONS: pdo_sqlite sqlite3 gd zip bcmath
+    REDIS_HOST: redis
+    DB_CONNECTION: sqlite
+    DB_DATABASE: ":memory:"
+  before_script:
+    - cd priorix-core
+    - composer install --no-interaction --prefer-dist
+    - cp .env.example .env
+    - php artisan key:generate --ansi
+    - php -r "file_put_contents('.env', preg_replace('/^REDIS_HOST=.*/m', 'REDIS_HOST=redis', file_get_contents('.env')));"
+    - php artisan config:clear
+  script:
+    - php -d pcov.enabled=1 vendor/bin/phpunit --coverage-clover coverage.xml
+  artifacts:
+    when: always
+    paths:
+      - priorix-core/coverage.xml
+  allow_failure: true
+
+test-gamification:
+  stage: coverage
+  image: thecodingmachine/php:8.3-v4-cli
+  variables:
+    PHP_EXTENSION_PCOV: 1
+    PHP_EXTENSIONS: pdo_sqlite sqlite3 gd zip bcmath
+    DB_CONNECTION: sqlite
+    DB_DATABASE: ":memory:"
+  before_script:
+    - cd priorix-gamification
+    - composer install --no-interaction --prefer-dist
+    - cp .env.example .env
+    - php artisan key:generate --ansi
+    - php artisan config:clear
+  script:
+    - php -d pcov.enabled=1 vendor/bin/phpunit --coverage-clover coverage.xml
+  artifacts:
+    when: always
+    paths:
+      - priorix-gamification/coverage.xml
+  allow_failure: true
+
+# ─── QUALITY ────────────────────────────────────────────────────────────────
+
+sonarcloud-core:
+  stage: quality
+  image: sonarsource/sonar-scanner-cli
+  variables:
+    SONAR_HOST_URL: "https://sonarcloud.io"
+  script:
+    - cd priorix-core
+    - sonar-scanner -Dsonar.token=$SONAR_TOKEN
+  only:
+    - main
+    - develop
+  allow_failure: true
+
+sonarcloud-gamification:
+  stage: quality
+  image: sonarsource/sonar-scanner-cli
+  variables:
+    SONAR_HOST_URL: "https://sonarcloud.io"
+  script:
+    - cd priorix-gamification
+    - sonar-scanner -Dsonar.token=$SONAR_TOKEN
+  only:
+    - main
+    - develop
+  allow_failure: true
