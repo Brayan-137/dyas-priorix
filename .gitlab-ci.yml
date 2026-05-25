@@ -308,9 +308,7 @@ trivy-gamification:
 
 test-core:
   stage: coverage
-  image: thecodingmachine/php:8.3-v4-cli   # ← 8.2 → 8.3
-  variables:
-    PHP_EXTENSION_PCOV: 1
+  image: thecodingmachine/php:8.3-v4-cli
   services:
     - name: redis:alpine
       alias: redis
@@ -335,7 +333,7 @@ test-core:
 
 test-gamification:
   stage: coverage
-  image: thecodingmachine/php:8.3-v4-cli   # ← 8.2 → 8.3
+  image: thecodingmachine/php:8.3-v4-cli
   variables:
     PHP_EXTENSION_PCOV: 1
     DB_CONNECTION: sqlite
