@@ -40,7 +40,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Configurar PHP
-        uses: shivammathur/setup-php@v3
+        uses: shivammathur/setup-php@v2
         with:
           php-version: 8.3
           extensions: mbstring, bcmath, curl, dom, gd, pdo_mysql, zip, redis
@@ -115,7 +115,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Configurar PHP
-        uses: shivammathur/setup-php@v3
+        uses: shivammathur/setup-php@v2
         with:
           php-version: 8.3
           extensions: mbstring, bcmath, curl, dom, gd, pdo_mysql, zip, redis
