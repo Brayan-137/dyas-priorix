@@ -308,19 +308,16 @@ trivy-gamification:
 
 test-core:
   stage: test
-  image: php:8.2-cli
+  image: ghcr.io/shivammathur/php:8.2
   before_script:
-    - apt-get update && apt-get install -y unzip git sqlite3 libsqlite3-dev
-    - curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
-    - pecl install pcov
-    - docker-php-ext-enable pcov
-    - cd priorix-core # o priorix-gamification según el job
+    - cd priorix-core
     - composer install --no-interaction --prefer-dist
-    - cp .env.example .env 2>/dev/null || true
+    - cp .env.example .env
+    - php artisan key:generate --ansi
+    - php -r "file_put_contents('.env', preg_replace('/^REDIS_HOST=.*/m', 'REDIS_HOST=redis', file_get_contents('.env')));"
   script:
     - cd priorix-core
-    - php artisan key:generate --force 2>/dev/null || true
-    - ./vendor/bin/phpunit --coverage-clover coverage.xml
+    - php artisan test --coverage-clover coverage.xml
   artifacts:
     when: always
     paths:
@@ -329,18 +326,15 @@ test-core:
 
 test-gamification:
   stage: test
-  image: php:8.2-cli
+  image: ghcr.io/shivammathur/php:8.2
   before_script:
-    - apt-get update && apt-get install -y unzip git sqlite3 libsqlite3-dev
-    - curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
-    - pecl install pcov
-    - docker-php-ext-enable pcov
-    - cd priorix-core # o priorix-gamification según el job
+    - cd priorix-gamification
     - composer install --no-interaction --prefer-dist
-    - cp .env.example .env 2>/dev/null || true
+    - cp .env.example .env
+    - php artisan key:generate --ansi
   script:
     - cd priorix-gamification
-    - ./vendor/bin/phpunit --coverage-clover coverage.xml
+    - php artisan test --coverage-clover coverage.xml
   artifacts:
     when: always
     paths:
