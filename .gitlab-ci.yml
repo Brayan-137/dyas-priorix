@@ -307,8 +307,11 @@ trivy-gamification:
 # ─── COVERAGE ────────────────────────────────────────────────────────────────
 
 test-core:
-  stage: coverage # <-- cambiado
-  image: ghcr.io/shivammathur/php:8.2
+  stage: coverage
+  image: thecodingmachine/php:8.2-v4-cli
+  variables:
+    PCOV_ENABLED: 1
+    PHP_EXTENSION_PCOV: 1
   before_script:
     - cd priorix-core
     - composer install --no-interaction --prefer-dist
@@ -325,8 +328,11 @@ test-core:
   allow_failure: true
 
 test-gamification:
-  stage: coverage # <-- cambiado
-  image: ghcr.io/shivammathur/php:8.2
+  stage: coverage
+  image: thecodingmachine/php:8.2-v4-cli
+  variables:
+    PCOV_ENABLED: 1
+    PHP_EXTENSION_PCOV: 1
   before_script:
     - cd priorix-gamification
     - composer install --no-interaction --prefer-dist
