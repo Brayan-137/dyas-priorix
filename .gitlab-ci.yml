@@ -29,21 +29,33 @@ variables:
 core-tests:
   <<: *default_php
   stage: test
+  services:
+    - name: redis:alpine
+      alias: redis
+  variables:
+    REDIS_HOST: redis
   script:
     - cd priorix-core
     - composer install --no-interaction --prefer-dist --optimize-autoloader
     - cp .env.example .env
     - php artisan key:generate --ansi
+    - php -r "file_put_contents('.env', preg_replace('/^REDIS_HOST=.*/m', 'REDIS_HOST=redis', file_get_contents('.env')));"
     - composer test
 
 gamification-tests:
   <<: *default_php
   stage: test
+  services:
+    - name: redis:alpine
+      alias: redis
+  variables:
+    REDIS_HOST: redis
   script:
     - cd priorix-gamification
     - composer install --no-interaction --prefer-dist --optimize-autoloader
     - cp .env.example .env
     - php artisan key:generate --ansi
+    - php -r "file_put_contents('.env', preg_replace('/^REDIS_HOST=.*/m', 'REDIS_HOST=redis', file_get_contents('.env')));"
     - composer test
 
 frontend-tests:
