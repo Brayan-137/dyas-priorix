@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: priorix-gateway
+spec:
+  type: LoadBalancer
+  ports:
+    - name: core
+      port: 8000
+      targetPort: 80
+    - name: gamification
+      port: 8001
+      targetPort: 81
+  selector:
+    app: priorix-nginx
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: priorix-nginx
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: priorix-nginx
+  template:
+    metadata:
+      labels:
+        app: priorix-nginx
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:alpine
+          ports:
+            - containerPort: 80
+            - containerPort: 81
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/conf.d
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: priorix-nginx-config

@@ -102,49 +102,56 @@ sequenceDiagram
 
 ## 10. CI/CD
 
-Se ha añadido un workflow de GitHub Actions en `.github/workflows/ci.yml` para automatizar las siguientes tareas:
+### Integración continua (CI)
 
-- ejecutar pruebas unitarias y de integración de `priorix-core`
-- ejecutar pruebas unitarias y de integración de `priorix-gamification`
-- ejecutar pruebas del frontend en `client`
-- construir las imágenes Docker de los dos servicios PHP
+Workflow: `.github/workflows/ci.yml` (también disponible en `.gitlab-ci.yml` para GitLab).
 
-### Cómo funciona
+En cada push o pull request se ejecuta automáticamente:
 
-1. `core-tests` y `gamification-tests` levantan servicios de MySQL y Redis en GitHub Actions.
-2. Generan el archivo `.env` temporal a partir de `.env.example` y actualizan los hosts de base de datos para el entorno de CI.
-3. Ejecutan migraciones y luego `composer test`.
-4. `frontend-tests` instala dependencias y ejecuta `npm run test` en el directorio `client`.
-5. `docker-build` construye las imágenes `priorix-core:ci` y `priorix-gamification:ci`.
+| Job | Qué valida |
+| :--- | :--- |
+| `core-tests` | PHPUnit de `priorix-core` (SQLite en memoria) |
+| `gamification-tests` | PHPUnit de `priorix-gamification` (SQLite en memoria) |
+| `frontend-tests` | Vitest en `client/tests` (GUI y componentes) |
+| `docker-build` | Construcción de imágenes Docker de ambos microservicios |
 
-### Recomendaciones adicionales
+**Corrección aplicada:** las pruebas PHP no requieren MySQL en CI porque `phpunit.xml` usa `DB_CONNECTION=sqlite` y `DB_DATABASE=:memory:`. El frontend limita Vitest a `tests/**` para no ejecutar archivos de `node_modules`.
 
-- Para despliegue en producción, puedes ampliar el workflow con `docker push` a GitHub Container Registry u otro registro.
-- Si vas a usar Kubernetes, crea manifiestos de despliegue basados en las imágenes generadas.
-- Conserva `docker-compose.yml` para desarrollo local y añade `docker-compose.override.yml` si necesitas entornos específicos de staging/producción.
+### Despliegue continuo (CD)
 
-### Pipeline para GitLab
+Workflow: `.github/workflows/cd.yml`
 
-Si deseas usar GitLab CI, he añadido un archivo `.gitlab-ci.yml` en la raíz del repositorio. Esta pipeline hace lo siguiente:
+1. Se dispara cuando el workflow **CI** termina con éxito en `main`, o manualmente desde Actions.
+2. Publica imágenes en **GitHub Container Registry** (`ghcr.io`).
+3. Aplica manifiestos de **Kubernetes** con Kustomize (`kubernetes/overlays/staging` o `production`).
 
-1. `core-tests`: instala dependencias de `priorix-core`, genera `.env`, corre migraciones y ejecuta `composer test`.
-2. `gamification-tests`: instala dependencias de `priorix-gamification`, genera `.env`, corre migraciones y ejecuta `composer test`.
-3. `frontend-tests`: instala dependencias de `client` y ejecuta `npm run test`.
-4. `docker-build`: construye las imágenes Docker de `priorix-core` y `priorix-gamification`.
+Para desplegar en un clúster real, configura el secreto `KUBE_CONFIG` (kubeconfig en base64) en el repositorio de GitHub. Sin ese secreto, el job valida los manifiestos con `kubectl apply --dry-run`.
 
-### Pasos para activar GitLab CI
+```bash
+# Despliegue local en Kubernetes (ejemplo con staging)
+kubectl apply -k kubernetes/overlays/staging
+```
 
-1. Comprueba que el remoto `origin` apunta a GitLab:
-   - `git remote -v`
-2. Añade el archivo `.gitlab-ci.yml` al repositorio:
-   - `git add .gitlab-ci.yml`
-3. Haz commit y push a la rama principal en GitLab:
-   - `git commit -m "Agregar pipeline GitLab CI"`
-   - `git push origin main`
-4. En GitLab, ve al proyecto y abre la sección `CI / CD > Pipelines`.
-5. Verifica que la pipeline se ejecute y revisa los logs de cada job.
+### Contenerización y orquestación
 
-### Consejos rápidos
+- **Docker:** `docker-compose.yml` para desarrollo local (core, gamification, nginx, MySQL, Redis).
+- **Kubernetes:** manifiestos en `kubernetes/base` con overlays `staging` y `production` (réplicas, servicios, Prometheus y Grafana).
 
-- Si la pipeline falla en la parte de `composer install`, revisa que el job esté usando PHP 8.3 y tenga permisos de red.
-- Si la pipeline falla al hacer `php artisan migrate`, revisa que el servicio `mysql` esté listo y que `.env` tenga `DB_HOST=mysql`.
+### Observabilidad
+
+| Herramienta | Uso | Acceso local |
+| :--- | :--- | :--- |
+| **Prometheus** | Métricas de `/metrics` en cada microservicio | http://localhost:9090 |
+| **Grafana** | Dashboards de latencia y Circuit Breaker | http://localhost:3001 (admin/admin) |
+| **Jaeger** | Trazabilidad distribuida (OpenTelemetry) | http://localhost:16686 |
+| **EFK** | Centralización de logs Laravel | Kibana http://localhost:5601, Elasticsearch :9200 |
+
+El stack **EFK** (Elasticsearch + Fluent Bit + Kibana) recoge los logs de `priorix-core/storage/logs` y `priorix-gamification/storage/logs`.
+
+```bash
+docker compose up -d
+```
+
+### GitLab CI
+
+El archivo `.gitlab-ci.yml` replica los mismos jobs: pruebas PHP, pruebas frontend y build Docker, sin depender de MySQL para los tests.

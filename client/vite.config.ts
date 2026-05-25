@@ -26,6 +26,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
-    exclude: ['tests/selenium/**'],
+    include: ['tests/**/*.{test,spec}.{ts,tsx,js,mjs}'],
+    exclude: ['**/node_modules/**', '**/dist/**', 'tests/selenium/**'],
   },
 })

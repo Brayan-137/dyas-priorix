@@ -1,0 +1,89 @@
+name: CD
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main, master]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Entorno de despliegue
+        required: true
+        default: staging
+        type: choice
+        options:
+          - staging
+          - production
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_CORE: ghcr.io/${{ github.repository }}/priorix-core
+  IMAGE_GAMIFICATION: ghcr.io/${{ github.repository }}/priorix-gamification
+
+jobs:
+  deploy:
+    name: Despliegue continuo
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
+    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login en GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build y publicar priorix-core
+        uses: docker/build-push-action@v5
+        with:
+          context: priorix-core
+          file: priorix-core/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_CORE }}:latest
+            ${{ env.IMAGE_CORE }}:${{ github.sha }}
+
+      - name: Build y publicar priorix-gamification
+        uses: docker/build-push-action@v5
+        with:
+          context: priorix-gamification
+          file: priorix-gamification/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_GAMIFICATION }}:latest
+            ${{ env.IMAGE_GAMIFICATION }}:${{ github.sha }}
+
+      - name: Configurar kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Desplegar en Kubernetes
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+          DEPLOY_ENV: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }}
+        run: |
+          OVERLAY="kubernetes/overlays/${DEPLOY_ENV}"
+          if [ -z "$KUBE_CONFIG" ]; then
+            echo "KUBE_CONFIG no configurado: validando manifiestos con dry-run ($OVERLAY)."
+            kubectl apply --dry-run=client -k "$OVERLAY"
+            exit 0
+          fi
+          mkdir -p ~/.kube
+          echo "$KUBE_CONFIG" | base64 -d > ~/.kube/config
+          kubectl apply -k "$OVERLAY"
+          kubectl rollout status deployment/priorix-core -n priorix --timeout=180s
+          kubectl rollout status deployment/priorix-gamification -n priorix --timeout=180s
