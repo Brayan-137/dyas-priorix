@@ -360,7 +360,6 @@ sonarcloud-core:
   only:
     - main
     - develop
-    - brayan
   allow_failure: true
 
 sonarcloud-gamification:
@@ -374,5 +373,4 @@ sonarcloud-gamification:
   only:
     - main
     - develop
-    - brayan
   allow_failure: true
