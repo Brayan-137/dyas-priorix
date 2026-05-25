@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: priorix-core
+spec:
+  ports:
+    - port: 80
+      targetPort: 80
+  selector:
+    app: priorix-core
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: priorix-core
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: priorix-core
+  template:
+    metadata:
+      labels:
+        app: priorix-core
+    spec:
+      containers:
+        - name: core
+          image: priorix-core:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+          envFrom:
+            - configMapRef:
+                name: priorix-config
+            - secretRef:
+                name: priorix-secrets
+          env:
+            - name: DB_HOST
+              value: mysql-core
+            - name: DB_DATABASE
+              value: priorix_core
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: 80
+            initialDelaySeconds: 20
+            periodSeconds: 10

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: priorix-config
+data:
+  APP_ENV: production
+  APP_DEBUG: "false"
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  DB_PORT: "3306"
+  DB_USERNAME: priorix
+  GAMIFICATION_SERVICE_URL: http://priorix-gamification/api/gamification
+  STATISTICS_SERVICE_URL: http://priorix-gamification/api/statistics
+  JAEGER_ENDPOINT: http://jaeger:4318/v1/traces
+  PROMETHEUS_STORAGE_ADAPTER: redis
