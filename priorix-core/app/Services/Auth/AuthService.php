@@ -5,6 +5,7 @@ namespace App\Services\Auth;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
+use PHPOpenSourceSaver\JWTAuth\Exceptions\JWTException;
 
 class AuthService
 {
@@ -16,7 +17,7 @@ class AuthService
             'password' => Hash::make($data['password']),
         ]);
 
-        $token = JWTAuth::fromUser($user);
+        $token = auth('api')->login($user);
 
         return $this->buildTokenResponse($token, $user);
     }
@@ -34,7 +35,13 @@ class AuthService
 
     public function refresh(): array
     {
-        $token = auth('api')->refresh();
+        try {
+            $token = auth('api')->refresh();
+        } catch (JWTException $e) {
+            // refresh_ttl vencido — re-login obligatorio
+            throw new \RuntimeException('Sesión expirada');
+        }
+
         return $this->buildTokenResponse($token, auth('api')->user());
     }
 

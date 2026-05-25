@@ -24,5 +24,35 @@ RUN chown -R www-data:www-data /var/www \
 COPY docker/nginx.conf /etc/nginx/sites-available/default
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
+COPY docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 EXPOSE 80
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+
+# Create a non-root user to run the application
+ARG UID=1000
+ARG GID=1000
+
+RUN groupadd -g ${GID} appgroup && \
+    useradd -u ${UID} -g appgroup -m appuser
+
+# Give the new user ownership of the necessary directories
+RUN mkdir -p /var/log/supervisor /var/run /run/nginx \
+        /var/lib/nginx/body \
+        /var/lib/nginx/fastcgi \
+        /var/lib/nginx/proxy \
+        /var/lib/nginx/scgi \
+        /var/lib/nginx/uwsgi \
+        /var/log/nginx \
+    && chown -R appuser:appgroup \
+        /var/log/supervisor \
+        /var/run \
+        /run/nginx \
+        /var/lib/nginx \
+        /var/log/nginx \
+    && touch /run/nginx.pid /var/run/supervisord.pid \
+    && chown appuser:appgroup /run/nginx.pid /var/run/supervisord.pid
+
+USER appuser
+
+ENTRYPOINT ["/entrypoint.sh"]

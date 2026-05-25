@@ -5,22 +5,17 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
-use PHPOpenSourceSaver\JWTAuth\Exceptions\TokenExpiredException;
 use PHPOpenSourceSaver\JWTAuth\Exceptions\TokenInvalidException;
 use PHPOpenSourceSaver\JWTAuth\Exceptions\JWTException;
 use Symfony\Component\HttpFoundation\Response;
 
-class JwtAuthMiddleware
+class JwtRefreshMiddleware
 {
     public function handle(Request $request, Closure $next): Response
     {
         try {
-            JWTAuth::parseToken()->authenticate();
-        } catch (TokenExpiredException) {
-            return response()->json([
-                'error' => 'Token expirado',
-                'code'  => 'TOKEN_EXPIRED',  // ← el cliente detecta esto y llama a /refresh
-            ], 401);
+            // Solo verifica estructura — permite tokens expirados
+            JWTAuth::parseToken()->getPayload();
         } catch (TokenInvalidException) {
             return response()->json([
                 'error' => 'Token inválido',

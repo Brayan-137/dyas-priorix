@@ -21,8 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
-            'jwt.auth' => \App\Http\Middleware\InternalServiceAuthMiddleware::class,
-            'internal.auth' => \App\Http\Middleware\InternalServiceAuthMiddleware::class,
+            'unified.auth' => \App\Http\Middleware\UnifiedAuthMiddleware::class,
         ]);
 
         $middleware->append(\App\Http\Middleware\PrometheusMiddleware::class);

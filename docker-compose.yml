@@ -3,9 +3,11 @@ services:
     build:
       context: ./priorix-core
       dockerfile: Dockerfile
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
     volumes:
       - ./priorix-core:/var/www
-      - /var/www/vendor
     networks:
       - priorix-network
     depends_on:
@@ -27,9 +29,11 @@ services:
     build:
       context: ./priorix-gamification
       dockerfile: Dockerfile
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
     volumes:
       - ./priorix-gamification:/var/www
-      - /var/www/vendor
     networks:
       - priorix-network
     depends_on:

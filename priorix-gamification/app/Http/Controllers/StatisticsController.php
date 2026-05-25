@@ -3,38 +3,39 @@
 namespace App\Http\Controllers;
 
 use App\Services\Statistics\StatisticsService;
-use App\Http\Traits\AuthorizeInternalServiceOrJwt;
+use App\Http\Traits\ResolvesAuthenticatedUser;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
 class StatisticsController extends Controller
 {
-    use AuthorizeInternalServiceOrJwt;
-    
+    use ResolvesAuthenticatedUser;
+
     public function __construct(private readonly StatisticsService $statisticsService) {}
 
     public function weekly(Request $request): JsonResponse
     {
-        $userId = $this->authorizeRequest($request);
-        
+        $userId = $this->resolveUserId($request);
+
         $stats = $this->statisticsService->getWeeklyStats($userId);
 
         return response()->json($stats);
     }
 
-    public function recordActivity(Request $request)
-{
-    $validated = $request->validate([
-        'activity_id' => 'required|integer',
-    ]);
+    public function recordActivity(Request $request): JsonResponse
+    {
+        $userId = $this->resolveUserId($request);
 
-    $userId = (int) $request->header('X-Internal-User-Id');
+        $data = $request->validate([
+            'activity_id' => 'required|integer|min:1',
+            'user_id' => 'sometimes|integer|min:1',
+        ]);
 
-    $summary = $this->statisticsService->recordActivityCompletion(
-        $userId,
-        $validated['activity_id']
-    );
+        $summary = $this->statisticsService->recordActivityCompletion(
+            $userId,
+            $data['activity_id']
+        );
 
-    return response()->json($summary);
-}
+        return response()->json($summary);
+    }
 }
