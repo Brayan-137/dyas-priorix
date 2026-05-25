@@ -10,7 +10,7 @@ stages:
   - secrets
   - dependency-scan
   - container-scan
-  - test
+  - coverage
   - quality
 
 workflow:
@@ -304,10 +304,10 @@ trivy-gamification:
       - trivy-report-gamification.json
   allow_failure: true
 
-# ─── TESTS ─────────────────────────────────────────────────────────────────────
+# ─── COVERAGE ────────────────────────────────────────────────────────────────
 
 test-core:
-  stage: test
+  stage: coverage # <-- cambiado
   image: ghcr.io/shivammathur/php:8.2
   before_script:
     - cd priorix-core
@@ -317,7 +317,7 @@ test-core:
     - php -r "file_put_contents('.env', preg_replace('/^REDIS_HOST=.*/m', 'REDIS_HOST=redis', file_get_contents('.env')));"
   script:
     - cd priorix-core
-    - php artisan test --coverage-clover coverage.xml
+    - php -d pcov.enabled=1 vendor/bin/phpunit --coverage-clover coverage.xml
   artifacts:
     when: always
     paths:
@@ -325,7 +325,7 @@ test-core:
   allow_failure: true
 
 test-gamification:
-  stage: test
+  stage: coverage # <-- cambiado
   image: ghcr.io/shivammathur/php:8.2
   before_script:
     - cd priorix-gamification
@@ -334,7 +334,7 @@ test-gamification:
     - php artisan key:generate --ansi
   script:
     - cd priorix-gamification
-    - php artisan test --coverage-clover coverage.xml
+    - php -d pcov.enabled=1 vendor/bin/phpunit --coverage-clover coverage.xml
   artifacts:
     when: always
     paths:
