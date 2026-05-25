@@ -308,10 +308,15 @@ trivy-gamification:
 
 test-core:
   stage: coverage
-  image: thecodingmachine/php:8.2-v4-cli
+  image: thecodingmachine/php:8.3-v4-cli   # ← 8.2 → 8.3
   variables:
-    PCOV_ENABLED: 1
     PHP_EXTENSION_PCOV: 1
+  services:
+    - name: redis:alpine
+      alias: redis
+  variables:
+    PHP_EXTENSION_PCOV: 1
+    REDIS_HOST: redis
   before_script:
     - cd priorix-core
     - composer install --no-interaction --prefer-dist
@@ -319,7 +324,6 @@ test-core:
     - php artisan key:generate --ansi
     - php -r "file_put_contents('.env', preg_replace('/^REDIS_HOST=.*/m', 'REDIS_HOST=redis', file_get_contents('.env')));"
   script:
-    - cd priorix-core
     - php -d pcov.enabled=1 vendor/bin/phpunit --coverage-clover coverage.xml
   artifacts:
     when: always
@@ -329,9 +333,8 @@ test-core:
 
 test-gamification:
   stage: coverage
-  image: thecodingmachine/php:8.2-v4-cli
+  image: thecodingmachine/php:8.3-v4-cli   # ← 8.2 → 8.3
   variables:
-    PCOV_ENABLED: 1
     PHP_EXTENSION_PCOV: 1
   before_script:
     - cd priorix-gamification
@@ -339,7 +342,6 @@ test-gamification:
     - cp .env.example .env
     - php artisan key:generate --ansi
   script:
-    - cd priorix-gamification
     - php -d pcov.enabled=1 vendor/bin/phpunit --coverage-clover coverage.xml
   artifacts:
     when: always
