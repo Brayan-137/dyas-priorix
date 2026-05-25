@@ -39,7 +39,7 @@ class StatisticsService
     private function updateStreak(int $userId, DailySummary $today): void
     {
         $yesterday = DailySummary::where('user_id', $userId)
-            ->where('date', Carbon::yesterday()->toDateString())
+            ->whereDate('date', Carbon::yesterday())
             ->first();
 
         $today->streak_day = ($yesterday && $yesterday->completed_count > 0)

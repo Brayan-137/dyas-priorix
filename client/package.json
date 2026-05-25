@@ -78,7 +78,7 @@
     "@testing-library/react": "^16.3.2",
     "@types/node": "^25.6.2",
     "@vitejs/plugin-react": "4.7.0",
-    "chromedriver": "^148.0.4",
+    "chromedriver": "^149.0.0",
     "jsdom": "^29.1.1",
     "k6": "^0.0.0",
     "newman": "^6.2.2",

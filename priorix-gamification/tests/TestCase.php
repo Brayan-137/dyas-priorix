@@ -3,8 +3,13 @@
 namespace Tests;
 
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Illuminate\Support\Facades\Redis;
 
 abstract class TestCase extends BaseTestCase
 {
-    // Clase base para pruebas Laravel del microservicio priorix-gamification.
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Redis::fake();
+    }
 }

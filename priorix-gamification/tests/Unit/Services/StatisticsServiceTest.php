@@ -30,9 +30,9 @@ class StatisticsServiceTest extends TestCase
 
         $this->assertDatabaseHas('daily_summaries', [
             'user_id' => 201,
-            'date' => '2026-05-22',
             'completed_count' => 1,
         ]);
+        $this->assertSame('2026-05-22', $summary->date->toDateString());
     }
 
     public function test_record_activity_completion_continues_streak_from_yesterday(): void
@@ -41,7 +41,7 @@ class StatisticsServiceTest extends TestCase
 
         DailySummary::create([
             'user_id' => 202,
-            'date' => '2026-05-21',
+            'date' => Carbon::parse('2026-05-21'),
             'completed_count' => 2,
             'pending_count' => 0,
             'streak_day' => 5,

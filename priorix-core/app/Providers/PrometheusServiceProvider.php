@@ -3,6 +3,7 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Prometheus\CollectorRegistry;
+use Prometheus\Storage\InMemory;
 use Prometheus\Storage\Redis as RedisAdapter;
 
 class PrometheusServiceProvider extends ServiceProvider
@@ -10,6 +11,10 @@ class PrometheusServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(CollectorRegistry::class, function () {
+            if (app()->environment('testing')) {
+                return new CollectorRegistry(new InMemory());
+            }
+
             $adapter = new RedisAdapter([
                 'host'     => config('database.redis.default.host', 'redis'),
                 'port'     => (int) config('database.redis.default.port', 6379), // ← cast obligatorio
