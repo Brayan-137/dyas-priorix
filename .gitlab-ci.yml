@@ -10,6 +10,7 @@ stages:
   - secrets
   - dependency-scan
   - container-scan
+  - test
   - quality
 
 workflow:
@@ -301,6 +302,49 @@ trivy-gamification:
     when: always
     paths:
       - trivy-report-gamification.json
+  allow_failure: true
+
+# ─── TESTS ─────────────────────────────────────────────────────────────────────
+
+test-core:
+  stage: test
+  image: php:8.2-cli
+  before_script:
+    - apt-get update && apt-get install -y unzip git sqlite3 libsqlite3-dev
+    - curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+    - pecl install pcov
+    - docker-php-ext-enable pcov
+    - cd priorix-core # o priorix-gamification según el job
+    - composer install --no-interaction --prefer-dist
+    - cp .env.example .env 2>/dev/null || true
+  script:
+    - cd priorix-core
+    - php artisan key:generate --force 2>/dev/null || true
+    - ./vendor/bin/phpunit --coverage-clover coverage.xml
+  artifacts:
+    when: always
+    paths:
+      - priorix-core/coverage.xml
+  allow_failure: true
+
+test-gamification:
+  stage: test
+  image: php:8.2-cli
+  before_script:
+    - apt-get update && apt-get install -y unzip git sqlite3 libsqlite3-dev
+    - curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+    - pecl install pcov
+    - docker-php-ext-enable pcov
+    - cd priorix-core # o priorix-gamification según el job
+    - composer install --no-interaction --prefer-dist
+    - cp .env.example .env 2>/dev/null || true
+  script:
+    - cd priorix-gamification
+    - ./vendor/bin/phpunit --coverage-clover coverage.xml
+  artifacts:
+    when: always
+    paths:
+      - priorix-gamification/coverage.xml
   allow_failure: true
 
 # ─── QUALITY ────────────────────────────────────────────────────────────────
