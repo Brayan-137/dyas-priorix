@@ -1,10 +1,8 @@
 name: CD
 
+# Despliegue manual. El despliegue automático tras CI exitoso corre en el job
+# "Despliegue continuo" del workflow CI (mismo push a main).
 on:
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
-    branches: [main, master]
   workflow_dispatch:
     inputs:
       environment:
@@ -20,23 +18,21 @@ permissions:
   contents: read
   packages: write
 
-env:
-  REGISTRY: ghcr.io
-  IMAGE_CORE: ghcr.io/${{ github.repository }}/priorix-core
-  IMAGE_GAMIFICATION: ghcr.io/${{ github.repository }}/priorix-gamification
-
 jobs:
   deploy:
-    name: Despliegue continuo
+    name: Despliegue continuo (manual)
     runs-on: ubuntu-latest
-    if: >
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.head_branch == 'main')
-    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }}
+    environment: ${{ inputs.environment }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Normalizar nombre de imágenes (minúsculas)
+        run: |
+          REPO_LC=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          echo "IMAGE_CORE=ghcr.io/${REPO_LC}/priorix-core" >> "$GITHUB_ENV"
+          echo "IMAGE_GAMIFICATION=ghcr.io/${REPO_LC}/priorix-gamification" >> "$GITHUB_ENV"
+          echo "DEPLOY_ENV=${{ inputs.environment }}" >> "$GITHUB_ENV"
 
       - name: Configurar Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -44,7 +40,7 @@ jobs:
       - name: Login en GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
@@ -74,7 +70,6 @@ jobs:
       - name: Desplegar en Kubernetes
         env:
           KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
-          DEPLOY_ENV: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }}
         run: |
           OVERLAY="kubernetes/overlays/${DEPLOY_ENV}"
           if [ -z "$KUBE_CONFIG" ]; then
