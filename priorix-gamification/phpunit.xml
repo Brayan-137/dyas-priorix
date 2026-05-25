@@ -37,9 +37,4 @@
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
     </php>
-    <coverage>
-        <report>
-            <clover outputFile="coverage.xml"/>
-        </report>
-    </coverage>
 </phpunit>
