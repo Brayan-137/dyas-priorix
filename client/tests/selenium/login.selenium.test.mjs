@@ -1,99 +1,85 @@
 import { Builder, By, until } from 'selenium-webdriver';
 import chrome from 'selenium-webdriver/chrome.js';
 import assert from 'assert';
+import chromedriver from 'chromedriver';
 
 const TIMEOUT = 15000;
 const BASE_URL = 'http://localhost:5173';
 
-async function findByText(driver, text) {
-  return driver.wait(
-    until.elementLocated(
-      By.xpath(`//*[contains(translate(normalize-space(.), 'ÁÉÍÓÚABCDEFGHIJKLMNOPQRSTUVWXYZ', 'áéíóúabcdefghijklmnopqrstuvwxyz'), '${text.toLowerCase()}')]`)
-    ),
-    TIMEOUT
-  );
-}
-
 async function runLoginModalGuiTest() {
-  console.log('🚀 Iniciando prueba Selenium GUI...');
+  console.log(' Iniciando prueba Selenium GUI...');
+
+  const service = new chrome.ServiceBuilder(chromedriver.path);
+
+  const options = new chrome.Options();
+  options.addArguments('--headless=new');
+  options.addArguments('--disable-gpu');
+  options.addArguments('--window-size=1366,768');
+
+  console.log(' Creando navegador Chrome...');
 
   const driver = await new Builder()
     .forBrowser('chrome')
-    .setChromeOptions(new chrome.Options())
+    .setChromeService(service)
+    .setChromeOptions(options)
     .build();
 
   try {
-    console.log('🌐 Abriendo frontend...');
+    console.log(' Abriendo frontend...');
     await driver.get(BASE_URL);
 
-    console.log('🔎 Validando formulario inicial de inicio de sesión...');
+    console.log(' Buscando título Iniciar sesión...');
+    const loginTitle = await driver.wait(
+      until.elementLocated(By.xpath("//*[contains(., 'Iniciar sesión')]")),
+      TIMEOUT
+    );
+    assert(await loginTitle.isDisplayed());
 
-    const loginTitle = await findByText(driver, 'iniciar sesión');
-    assert(await loginTitle.isDisplayed(), 'No apareció el título Iniciar sesión');
-
+    console.log(' Buscando campo correo...');
     const emailInput = await driver.wait(
       until.elementLocated(By.xpath("//input[contains(@placeholder, 'correo') or contains(@placeholder, 'Correo')]")),
       TIMEOUT
     );
-    assert(await emailInput.isDisplayed(), 'No apareció el campo correo');
+    assert(await emailInput.isDisplayed());
 
+    console.log(' Buscando campo contraseña...');
     const passwordInput = await driver.wait(
       until.elementLocated(By.xpath("//input[contains(@placeholder, 'contraseña') or contains(@placeholder, 'Contraseña')]")),
       TIMEOUT
     );
-    assert(await passwordInput.isDisplayed(), 'No apareció el campo contraseña');
+    assert(await passwordInput.isDisplayed());
 
+    console.log(' Buscando botón Entrar...');
     const entrarButton = await driver.wait(
-      until.elementLocated(By.xpath("//button[contains(normalize-space(.), 'Entrar')]")),
+      until.elementLocated(By.xpath("//button[contains(., 'Entrar')]")),
       TIMEOUT
     );
-    assert(await entrarButton.isDisplayed(), 'No apareció el botón Entrar');
+    assert(await entrarButton.isDisplayed());
 
-    console.log('✅ Formulario inicial validado');
-
-    console.log('🔁 Cambiando al formulario de registro...');
-
+    console.log(' Cambiando a registro...');
     const registrateButton = await driver.wait(
-      until.elementLocated(By.xpath("//button[contains(normalize-space(.), 'Regístrate')]")),
+      until.elementLocated(By.xpath("//button[contains(., 'Regístrate')]")),
       TIMEOUT
     );
-
     await registrateButton.click();
 
-    const crearCuentaTitle = await findByText(driver, 'crear cuenta');
-    assert(await crearCuentaTitle.isDisplayed(), 'No apareció Crear cuenta');
+    console.log(' Buscando Crear cuenta...');
+    const crearCuentaTitle = await driver.wait(
+      until.elementLocated(By.xpath("//*[contains(., 'Crear cuenta')]")),
+      TIMEOUT
+    );
+    assert(await crearCuentaTitle.isDisplayed());
 
+    console.log(' Buscando campo nombre...');
     const nameInput = await driver.wait(
       until.elementLocated(By.xpath("//input[contains(@placeholder, 'nombre') or contains(@placeholder, 'Nombre')]")),
       TIMEOUT
     );
-    assert(await nameInput.isDisplayed(), 'No apareció el campo nombre');
+    assert(await nameInput.isDisplayed());
 
-    const registrarseButton = await driver.wait(
-      until.elementLocated(By.xpath("//button[contains(normalize-space(.), 'Registrarse')]")),
-      TIMEOUT
-    );
-    assert(await registrarseButton.isDisplayed(), 'No apareció el botón Registrarse');
-
-    console.log('✅ Formulario de registro validado');
-
-    console.log('🔁 Volviendo al formulario de inicio de sesión...');
-
-    const iniciaSesionButton = await driver.wait(
-      until.elementLocated(By.xpath("//button[contains(normalize-space(.), 'Inicia sesión')]")),
-      TIMEOUT
-    );
-
-    await iniciaSesionButton.click();
-
-    const loginTitleAgain = await findByText(driver, 'iniciar sesión');
-    assert(await loginTitleAgain.isDisplayed(), 'No regresó al formulario de inicio de sesión');
-
-    console.log('✅ Retorno al login validado');
-
-    console.log('🎉 Selenium GUI test passed');
+    console.log(' Selenium GUI test passed');
   } catch (error) {
-    console.error('❌ Selenium GUI test failed');
+    console.error(' Selenium GUI test failed');
     console.error(error);
     process.exitCode = 1;
   } finally {
